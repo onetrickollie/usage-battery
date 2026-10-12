@@ -156,5 +156,15 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"Usage battery running at http://127.0.0.1:{PORT}{'  (demo data)' if DEMO else ''}")
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    except OSError as e:
+        if e.errno in (48, 98):  # address already in use (macOS, Linux)
+            sys.exit(f"Port {PORT} is already in use - Usage Battery is probably already running.\n"
+                     f"Open http://127.0.0.1:{PORT}, or stop the other copy (Ctrl+C in its window) and try again.")
+        raise
+    print(f"Usage battery running at http://127.0.0.1:{PORT}{'  (demo data)' if DEMO else ''}  (Ctrl+C to stop)")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped.")
