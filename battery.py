@@ -54,10 +54,11 @@ def claude_usage():
     except Exception as e:
         return {"name": "Claude", "error": str(e)}
     meters = []
-    for key, v in data.items():
+    for key, label in LABELS.items():
+        v = data.get(key)
         if isinstance(v, dict) and v.get("utilization") is not None:
-            meters.append({"label": LABELS.get(key, key.replace("_", " ")),
-                           "used": float(v["utilization"]), "resets_at": v.get("resets_at")})
+            meters.append(recharged({"label": label, "used": float(v["utilization"]),
+                                     "resets_at": v.get("resets_at")}))
     return {"name": "Claude", "meters": meters}
 
 
@@ -92,11 +93,22 @@ def codex_usage():
                     resets = datetime.fromtimestamp(resets, timezone.utc).isoformat()
                 elif resets is None and w.get("resets_in_seconds") is not None:
                     resets = datetime.fromtimestamp(mtime + w["resets_in_seconds"], timezone.utc).isoformat()
-                meters.append({"label": label, "used": float(w["used_percent"]), "resets_at": resets})
-            age = int((time.time() - mtime) / 60)
+                meters.append(recharged({"label": label, "used": float(w["used_percent"]), "resets_at": resets}))
+            mins = int((time.time() - mtime) / 60)
+            age = f"{mins} min" if mins < 60 else f"{mins // 60} h" if mins < 1440 else f"{mins // 1440} days"
             return {"name": "ChatGPT / Codex", "meters": meters,
-                    "note": f"From your last Codex run, {age} min ago"}
+                    "note": f"From your last Codex run, {age} ago"}
     return {"name": "ChatGPT / Codex", "error": "Codex sessions have no rate-limit data yet."}
+
+
+def recharged(meter):
+    """A window whose reset time has passed is full again, even if the snapshot is older."""
+    try:
+        if meter["resets_at"] and datetime.fromisoformat(meter["resets_at"].replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+            meter.update(used=0.0, resets_at=None)
+    except ValueError:
+        pass
+    return meter
 
 
 def find_key(obj, key):
