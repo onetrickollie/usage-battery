@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage Battery</title>
+<style>
+  :root { --bg:#f6f6f3; --card:#fff; --ink:#1d1d1b; --muted:#77756f; --line:#dedcd5;
+          --full:#2f9e5b; --mid:#d39b1f; --low:#d2453a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --card:#1f1f1d; --ink:#ecebe6;
+          --muted:#9b998f; --line:#363531; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:32px 16px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:24px; }
+  h1 { font-size:20px; margin:0; }
+  #updated { color:var(--muted); font-size:13px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px;
+            padding:20px; margin-bottom:16px; }
+  h2 { font-size:16px; margin:0 0 4px; }
+  .note, .err { font-size:13px; color:var(--muted); margin:0 0 12px; }
+  .err { color:var(--low); }
+  .meter { display:grid; grid-template-columns:1fr auto; gap:6px 16px; align-items:center; margin-top:14px; }
+  .label { font-weight:600; font-size:14px; }
+  .reset { color:var(--muted); font-size:12px; grid-column:1 / -1; }
+  .pct { font-variant-numeric:tabular-nums; font-weight:700; font-size:18px; text-align:right; }
+  .pct small { display:block; font-weight:500; font-size:12px; color:var(--muted); }
+  #banner { display:none; background:var(--mid); color:#1d1d1b; font-weight:600; font-size:13px;
+            padding:10px 14px; border-radius:10px; margin-bottom:16px; }
+  .battery { grid-column:1 / -1; display:flex; align-items:center; }
+  .shell { flex:1; height:34px; border:3px solid var(--ink); border-radius:8px; padding:3px; }
+  .fill { height:100%; border-radius:3px; transition:width .6s ease, background .6s; }
+  .tip { width:6px; height:14px; background:var(--ink); border-radius:0 3px 3px 0; margin-left:2px; }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>🔋 Usage Battery</h1><span id="updated">loading…</span></header>
+  <div id="banner">Demo mode: these are made-up numbers, not your account. Run <code>python3 battery.py</code> without --demo for real usage.</div>
+  <div id="services"></div>
+</main>
+<script>
+const color = r => r > 50 ? 'var(--full)' : r > 20 ? 'var(--mid)' : 'var(--low)';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function resetText(iso) {
+  if (!iso) return '';
+  const ms = new Date(iso) - Date.now();
+  if (ms <= 0) return 'Resetting now';
+  const h = Math.floor(ms / 3.6e6), m = Math.floor(ms % 3.6e6 / 6e4);
+  const span = h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : h ? `${h}h ${m}m` : `${m}m`;
+  return `Recharges in ${span} · ${new Date(iso).toLocaleString([], {weekday:'short', hour:'numeric', minute:'2-digit'})}`;
+}
+
+function render(services) {
+  document.getElementById('services').innerHTML = services.map(s => `
+    <section>
+      <h2>${esc(s.name)}</h2>
+      ${s.error ? `<p class="err">${esc(s.error)}</p>` : ''}
+      ${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}
+      ${(s.meters || []).map(m => {
+        const left = Math.max(0, Math.min(100, 100 - m.used));
+        return `<div class="meter">
+          <span class="label">${esc(m.label)}</span>
+          <span class="pct" style="color:${color(left)}">${Math.round(left)}% left<small>${Math.round(m.used)}% used</small></span>
+          <div class="battery"><div class="shell"><div class="fill" style="width:${left}%;background:${color(left)}"></div></div><div class="tip"></div></div>
+          <span class="reset">${esc(resetText(m.resets_at))}</span>
+        </div>`;
+      }).join('')}
+    </section>`).join('');
+}
+
+async function load() {
+  try {
+    const data = await (await fetch('/api/usage')).json();
+    document.getElementById('banner').style.display = data.demo ? 'block' : 'none';
+    render(data.services);
+    document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('updated').textContent = 'Server not reachable';
+  }
+}
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>
