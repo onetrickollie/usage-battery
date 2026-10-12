@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "battery", "runtimeExecutable": "python3", "runtimeArgs": ["battery.py"], "port": 8765 },
+    { "name": "battery-demo", "runtimeExecutable": "python3", "runtimeArgs": ["battery.py", "--demo"], "port": 8765 }
+  ]
+}
