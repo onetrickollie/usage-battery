@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """AI usage battery meter.
 
-Reads your existing logins (no keys to paste) and shows remaining limits as batteries:
-  - Claude: the OAuth login Claude Code already stored (macOS Keychain or ~/.claude/.credentials.json)
+Shows your remaining AI usage limits as batteries, from data already saved on this computer:
+  - Claude: the snapshot statusline.py saves each time Claude Code replies (~/.usage-battery/claude.json)
   - Codex / ChatGPT: rate-limit snapshots Codex CLI writes into ~/.codex/sessions
+
+No logins are read and nothing is sent over the network.
 
 Run:  python3 battery.py          -> http://127.0.0.1:8765
       python3 battery.py --demo   -> fake data, for trying the UI
-Stdlib only. The server binds to localhost and never sends your token to the browser.
 """
-import glob, json, os, subprocess, sys, time, urllib.request, urllib.error
+import glob, json, os, sys, time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -17,49 +18,39 @@ PORT = 8765
 DEMO = "--demo" in sys.argv
 HOME = os.path.expanduser("~")
 
-LABELS = {
-    "five_hour": "5-hour session", "seven_day": "Weekly (all models)",
-    "seven_day_opus": "Weekly (Opus)", "seven_day_sonnet": "Weekly (Sonnet)",
-    "seven_day_oauth_apps": "Weekly (apps)",
-}
+LABELS = {"five_hour": "5-hour session", "seven_day": "Weekly (all models)"}
 
 
-def claude_token():
-    try:
-        raw = subprocess.run(["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
-                             capture_output=True, text=True, timeout=10).stdout.strip()
-    except Exception:
-        raw = ""
-    if not raw:
-        path = os.path.join(HOME, ".claude", ".credentials.json")
-        if os.path.exists(path):
-            raw = open(path).read()
-    if not raw:
-        return None
-    return json.loads(raw).get("claudeAiOauth", {}).get("accessToken")
+CLAUDE_SNAPSHOT = os.path.join(HOME, ".usage-battery", "claude.json")
 
 
 def claude_usage():
-    token = claude_token()
-    if not token:
-        return {"name": "Claude", "error": "No Claude login found. Run `claude` and sign in with your Claude account."}
-    req = urllib.request.Request("https://api.anthropic.com/api/oauth/usage", headers={
-        "Authorization": f"Bearer {token}", "anthropic-beta": "oauth-2025-04-20",
-        "Content-Type": "application/json", "User-Agent": "usage-battery/0.1"})
+    """Read the usage snapshot statusline.py saves each time Claude Code replies."""
+    if not os.path.exists(CLAUDE_SNAPSHOT):
+        return {"name": "Claude", "error": "No usage saved yet. Set up statusline.py (see README), "
+                                           "then send Claude Code one message."}
     try:
-        data = json.load(urllib.request.urlopen(req, timeout=15))
-    except urllib.error.HTTPError as e:
-        hint = " (login expired? run `claude` once to refresh it)" if e.code == 401 else ""
-        return {"name": "Claude", "error": f"HTTP {e.code}{hint}"}
-    except Exception as e:
-        return {"name": "Claude", "error": str(e)}
+        snap = json.load(open(CLAUDE_SNAPSHOT))
+    except (OSError, ValueError) as e:
+        return {"name": "Claude", "error": f"Couldn't read {CLAUDE_SNAPSHOT}: {e}"}
+    rl = snap.get("rate_limits") or {}
     meters = []
     for key, label in LABELS.items():
-        v = data.get(key)
-        if isinstance(v, dict) and v.get("utilization") is not None:
-            meters.append(recharged({"label": label, "used": float(v["utilization"]),
-                                     "resets_at": v.get("resets_at")}))
-    return {"name": "Claude", "meters": meters}
+        v = rl.get(key)
+        if isinstance(v, dict) and v.get("used_percentage") is not None:
+            resets = v.get("resets_at")
+            if isinstance(resets, (int, float)):
+                resets = datetime.fromtimestamp(resets, timezone.utc).isoformat()
+            meters.append(recharged({"label": label, "used": float(v["used_percentage"]), "resets_at": resets}))
+    return {"name": "Claude", "meters": meters, "note": f"From your last Claude Code reply, {ago(snap.get('saved_at'))}"}
+
+
+def ago(ts):
+    if not ts:
+        return "at an unknown time"
+    mins = int((time.time() - ts) / 60)
+    return ("just now" if mins < 1 else f"{mins} min ago" if mins < 60 else
+            f"{mins // 60} h ago" if mins < 1440 else f"{mins // 1440} days ago")
 
 
 def codex_usage():
@@ -94,10 +85,8 @@ def codex_usage():
                 elif resets is None and w.get("resets_in_seconds") is not None:
                     resets = datetime.fromtimestamp(mtime + w["resets_in_seconds"], timezone.utc).isoformat()
                 meters.append(recharged({"label": label, "used": float(w["used_percent"]), "resets_at": resets}))
-            mins = int((time.time() - mtime) / 60)
-            age = f"{mins} min" if mins < 60 else f"{mins // 60} h" if mins < 1440 else f"{mins // 1440} days"
             return {"name": "ChatGPT / Codex", "meters": meters,
-                    "note": f"From your last Codex run, {age} ago"}
+                    "note": f"From your last Codex run, {ago(mtime)}"}
     return {"name": "ChatGPT / Codex", "error": "Codex sessions have no rate-limit data yet."}
 
 
