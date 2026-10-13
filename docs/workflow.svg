@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="960" height="540" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Usage Battery workflow</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a4944"/>
+    </marker>
+    <marker id="arrow-planned" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9a988f"/>
+    </marker>
+  </defs>
+
+  <!-- Card -->
+  <rect x="0.5" y="0.5" width="959" height="539" rx="18" fill="#fafaf7" stroke="#e2e0d8"/>
+
+  <!-- Column headings -->
+  <g font-size="12" font-weight="600" fill="#8a887f" letter-spacing="1.2">
+    <text x="40" y="44">WHERE USAGE COMES FROM</text>
+    <text x="360" y="44">THE HUB · YOUR COMPUTER</text>
+    <text x="690" y="44">WHERE YOU SEE IT</text>
+  </g>
+
+  <!-- Sources -->
+  <g>
+    <rect x="40" y="64" width="260" height="150" rx="12" fill="#ffffff" stroke="#d9d7ce"/>
+    <text x="60" y="94" font-size="16" font-weight="700" fill="#1d1d1b">Your Claude account</text>
+    <text font-size="13" fill="#5f5e58">
+      <tspan x="60" y="120">One shared set of limits for</tspan>
+      <tspan x="60" y="139">everything you use:</tspan>
+    </text>
+    <g font-size="12.5" fill="#1d1d1b">
+      <rect x="60" y="152" width="104" height="22" rx="11" fill="#f0efe9"/><text x="112" y="167" text-anchor="middle">Claude Code</text>
+      <rect x="170" y="152" width="110" height="22" rx="11" fill="#f0efe9"/><text x="225" y="167" text-anchor="middle">Desktop app</text>
+      <rect x="60" y="180" width="104" height="22" rx="11" fill="#f0efe9"/><text x="112" y="195" text-anchor="middle">claude.ai</text>
+      <rect x="170" y="180" width="110" height="22" rx="11" fill="#f0efe9"/><text x="225" y="195" text-anchor="middle">Phone</text>
+    </g>
+  </g>
+  <g>
+    <rect x="40" y="244" width="260" height="96" rx="12" fill="#ffffff" stroke="#d9d7ce"/>
+    <text x="60" y="274" font-size="16" font-weight="700" fill="#1d1d1b">Codex CLI</text>
+    <text font-size="13" fill="#5f5e58">
+      <tspan x="60" y="300">Saves your rate limits in</tspan>
+      <tspan x="60" y="319" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">~/.codex/sessions</tspan>
+    </text>
+  </g>
+
+  <!-- Hub -->
+  <g>
+    <rect x="360" y="64" width="270" height="276" rx="14" fill="#ffffff" stroke="#2f9e5b" stroke-width="2"/>
+    <text x="382" y="96" font-size="16" font-weight="700" fill="#1d1d1b">battery.py</text>
+    <text x="382" y="116" font-size="13" fill="#5f5e58">Runs on your Mac, every 60 seconds</text>
+
+    <g font-size="13" fill="#1d1d1b">
+      <circle cx="390" cy="146" r="4" fill="#2f9e5b"/>
+      <text x="402" y="150">Asks Claude Code for usage</text>
+      <text x="402" y="169" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5f5e58">claude -p /usage</text>
+
+      <circle cx="390" cy="198" r="4" fill="#2f9e5b"/>
+      <text x="402" y="202">Reads the latest Codex snapshot</text>
+
+      <circle cx="390" cy="231" r="4" fill="#2f9e5b"/>
+      <text x="402" y="235">Falls back to the status line</text>
+      <text x="402" y="254" fill="#5f5e58" font-size="12">snapshot if the live check fails</text>
+
+      <circle cx="390" cy="283" r="4" fill="#2f9e5b"/>
+      <text x="402" y="287">Serves the numbers locally</text>
+      <text x="402" y="306" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5f5e58">/api/usage</text>
+    </g>
+  </g>
+
+  <!-- Outputs -->
+  <g>
+    <rect x="690" y="64" width="230" height="120" rx="12" fill="#ffffff" stroke="#d9d7ce"/>
+    <text x="710" y="94" font-size="16" font-weight="700" fill="#1d1d1b">Browser page</text>
+    <text x="710" y="114" font-size="13" fill="#5f5e58">Refreshes every minute</text>
+    <!-- mini batteries -->
+    <rect x="710" y="132" width="150" height="16" rx="4" fill="none" stroke="#1d1d1b" stroke-width="2"/>
+    <rect x="713" y="135" width="72" height="10" rx="2" fill="#d39b1f"/>
+    <rect x="861" y="136" width="4" height="8" rx="1" fill="#1d1d1b"/>
+    <text x="875" y="145" font-size="12" font-weight="600" fill="#1d1d1b">50%</text>
+    <rect x="710" y="156" width="150" height="16" rx="4" fill="none" stroke="#1d1d1b" stroke-width="2"/>
+    <rect x="713" y="159" width="132" height="10" rx="2" fill="#2f9e5b"/>
+    <rect x="861" y="160" width="4" height="8" rx="1" fill="#1d1d1b"/>
+    <text x="875" y="169" font-size="12" font-weight="600" fill="#1d1d1b">91%</text>
+  </g>
+  <g>
+    <rect x="690" y="214" width="230" height="126" rx="12" fill="#ffffff" stroke="#9a988f" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <text x="710" y="244" font-size="16" font-weight="700" fill="#1d1d1b">Desk display</text>
+    <rect x="828" y="230" width="72" height="20" rx="10" fill="#f0efe9"/>
+    <text x="864" y="244" font-size="11.5" font-weight="600" fill="#6b6a64" text-anchor="middle">PLANNED</text>
+    <text font-size="13" fill="#5f5e58">
+      <tspan x="710" y="270">ESP32 + e-ink screen</tspan>
+      <tspan x="710" y="290">Paired with your Mac,</tspan>
+      <tspan x="710" y="310">checks in over Wi-Fi</tspan>
+    </text>
+  </g>
+
+  <!-- Arrows -->
+  <g stroke="#4a4944" stroke-width="2" fill="none">
+    <path d="M300,139 L356,139" marker-end="url(#arrow)"/>
+    <path d="M300,292 C330,292 330,214 356,214" marker-end="url(#arrow)"/>
+    <path d="M630,124 L686,124" marker-end="url(#arrow)"/>
+  </g>
+  <path d="M630,277 L686,277" stroke="#9a988f" stroke-width="2" stroke-dasharray="6 5" fill="none" marker-end="url(#arrow-planned)"/>
+
+  <!-- Bottom notes -->
+  <line x1="40" y1="378" x2="920" y2="378" stroke="#e2e0d8"/>
+  <g font-size="13.5" fill="#1d1d1b">
+    <circle cx="48" cy="410" r="5" fill="#2f9e5b"/>
+    <text x="62" y="415"><tspan font-weight="700">No model calls.</tspan> <tspan fill="#5f5e58">/usage only checks your limits, so refreshing doesn't use them up.</tspan></text>
+    <circle cx="48" cy="442" r="5" fill="#2f9e5b"/>
+    <text x="62" y="447"><tspan font-weight="700">No logins leave your computer.</tspan> <tspan fill="#5f5e58">Claude Code signs itself in; displays only ever receive percentages.</tspan></text>
+    <circle cx="48" cy="474" r="5" fill="#2f9e5b"/>
+    <text x="62" y="479"><tspan font-weight="700">Any device counts.</tspan> <tspan fill="#5f5e58">Usage from the desktop app, claude.ai or your phone shows up within a minute.</tspan></text>
+  </g>
+
+  <!-- Legend -->
+  <g font-size="12" fill="#6b6a64">
+    <line x1="40" y1="512" x2="68" y2="512" stroke="#4a4944" stroke-width="2"/>
+    <text x="76" y="516">Working now</text>
+    <line x1="170" y1="512" x2="198" y2="512" stroke="#9a988f" stroke-width="2" stroke-dasharray="6 5"/>
+    <text x="206" y="516">Planned</text>
+  </g>
+</svg>

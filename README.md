@@ -7,6 +7,8 @@ A battery meter for your AI usage limits. Instead of digging through settings pa
 - Batteries are green above 50% left, yellow down to 20%, and red below that. Each one also shows "% used", so it lines up with what Claude's own usage page says.
 - It refreshes every minute on its own, and picks up usage from any device: Claude Code, the desktop app, claude.ai and your phone.
 
+![How Usage Battery works: usage from your Claude account and Codex goes to battery.py on your computer, which refreshes every 60 seconds and feeds the browser page and, later, a desk display](docs/workflow.svg)
+
 ## Quick start
 
 Requires Python 3 (no extra packages) and [Claude Code](https://claude.com/claude-code) signed in with a Claude Pro or Max plan.
