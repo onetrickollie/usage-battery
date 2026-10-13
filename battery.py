@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 """AI usage battery meter.
 
-Shows your remaining AI usage limits as batteries, from data already saved on this computer:
-  - Claude: the snapshot statusline.py saves each time Claude Code replies (~/.usage-battery/claude.json)
+Shows your remaining AI usage limits as batteries:
+  - Claude: every minute, asks Claude Code for your usage (`claude -p /usage`), which reports
+    account-wide numbers without sending a message to the model. Falls back to the snapshot
+    statusline.py saves when Claude Code replies (~/.usage-battery/claude.json).
   - Codex / ChatGPT: rate-limit snapshots Codex CLI writes into ~/.codex/sessions
 
-No logins are read and nothing is sent over the network.
+This script never reads your logins itself.
 
 Run:  python3 battery.py          -> http://127.0.0.1:8765
       python3 battery.py --demo   -> fake data, for trying the UI
 """
-import glob, json, os, sys, time
+import glob, json, os, re, shutil, subprocess, sys, tempfile, threading, time
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = 8765
+REFRESH_SECONDS = 60
 DEMO = "--demo" in sys.argv
 HOME = os.path.expanduser("~")
 
@@ -25,10 +29,23 @@ CLAUDE_SNAPSHOT = os.path.join(HOME, ".usage-battery", "claude.json")
 
 
 def claude_usage():
+    """Prefer the live /usage reading; fall back to the status line snapshot."""
+    live = LIVE.get("result")
+    if live and time.time() - live["at"] < 3 * REFRESH_SECONDS:
+        return {"name": "Claude", "meters": [recharged(dict(m)) for m in live["meters"]],
+                "note": f"Live from Claude Code, checked {ago(live['at'])}"}
+    snap = snapshot_usage()
+    if LIVE.get("error") and (snap.get("error") or not snap.get("meters")):
+        snap = {"name": "Claude", "error": LIVE["error"]}
+    elif LIVE.get("error"):
+        snap["note"] += f" (live check unavailable: {LIVE['error']})"
+    return snap
+
+
+def snapshot_usage():
     """Read the usage snapshot statusline.py saves each time Claude Code replies."""
     if not os.path.exists(CLAUDE_SNAPSHOT):
-        return {"name": "Claude", "error": "No usage saved yet. Set up statusline.py (see README), "
-                                           "then send Claude Code one message."}
+        return {"name": "Claude", "error": "No usage yet. Make sure Claude Code is installed and signed in."}
     try:
         snap = json.load(open(CLAUDE_SNAPSHOT))
     except (OSError, ValueError) as e:
@@ -43,6 +60,75 @@ def claude_usage():
                 resets = datetime.fromtimestamp(resets, timezone.utc).isoformat()
             meters.append(recharged({"label": label, "used": float(v["used_percentage"]), "resets_at": resets}))
     return {"name": "Claude", "meters": meters, "note": f"From your last Claude Code reply, {ago(snap.get('saved_at'))}"}
+
+
+# --- Live refresh via `claude -p /usage` -------------------------------------------------
+
+LIVE = {}
+USAGE_LINE = re.compile(r"^Current (session|week \((?P<scope>[^)]+)\)): (?P<pct>[\d.]+)% used(?: · resets (?P<resets>.+))?$")
+
+
+def find_claude():
+    for path in (shutil.which("claude"), os.path.join(HOME, ".claude", "local", "claude"),
+                 os.path.join(HOME, ".local", "bin", "claude"), "/opt/homebrew/bin/claude", "/usr/local/bin/claude"):
+        if path and os.path.exists(path):
+            return path
+    return None
+
+
+def parse_reset(text):
+    """'Oct 12 at 8:30pm (America/Los_Angeles)' -> ISO timestamp, or None if the format changed."""
+    m = re.match(r"(\w{3} \d{1,2}) at (\d{1,2}(?::\d{2})?[ap]m)(?: \(([^)]+)\))?", text.strip())
+    if not m:
+        return None
+    day, clock, tz = m.groups()
+    try:
+        zone = ZoneInfo(tz) if tz else datetime.now().astimezone().tzinfo
+        fmt = "%b %d %I:%M%p" if ":" in clock else "%b %d %I%p"
+        now = datetime.now(zone)
+        when = datetime.strptime(f"{day} {clock.upper()}", fmt).replace(year=now.year, tzinfo=zone)
+        if (now - when).days > 180:  # e.g. a Jan 2 reset seen on Dec 30
+            when = when.replace(year=now.year + 1)
+        return when.isoformat()
+    except (ValueError, KeyError):
+        return None
+
+
+def parse_usage(output):
+    meters = []
+    for line in output.splitlines():
+        m = USAGE_LINE.match(line.strip())
+        if not m:
+            continue
+        scope = m.group("scope")
+        label = "5-hour session" if scope is None else f"Weekly ({scope})"
+        meters.append({"label": label, "used": float(m.group("pct")),
+                       "resets_at": parse_reset(m.group("resets")) if m.group("resets") else None})
+    return meters
+
+
+def refresh_live():
+    claude = find_claude()
+    if not claude:
+        LIVE["error"] = "Claude Code not found"
+        return
+    try:
+        out = subprocess.run([claude, "-p", "/usage"], capture_output=True, text=True,
+                             timeout=60, cwd=tempfile.gettempdir()).stdout
+    except (OSError, subprocess.TimeoutExpired) as e:
+        LIVE["error"] = f"couldn't run Claude Code ({e.__class__.__name__})"
+        return
+    meters = parse_usage(out)
+    if meters:
+        LIVE.update(result={"meters": meters, "at": time.time()}, error=None)
+    else:
+        LIVE["error"] = "Claude Code's /usage output wasn't recognized (signed in with a Pro/Max plan?)"
+
+
+def refresh_loop():
+    while True:
+        refresh_live()
+        time.sleep(REFRESH_SECONDS)
 
 
 def ago(ts):
@@ -152,6 +238,8 @@ if __name__ == "__main__":
             sys.exit(f"Port {PORT} is already in use - Usage Battery is probably already running.\n"
                      f"Open http://127.0.0.1:{PORT}, or stop the other copy (Ctrl+C in its window) and try again.")
         raise
+    if not DEMO:
+        threading.Thread(target=refresh_loop, daemon=True).start()
     print(f"Usage battery running at http://127.0.0.1:{PORT}{'  (demo data)' if DEMO else ''}  (Ctrl+C to stop)")
     try:
         server.serve_forever()
