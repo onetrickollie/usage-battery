@@ -5,7 +5,8 @@ Shows your usage batteries on a Raspberry Pi with a [PiSugar Whisplay HAT](https
 - **Pixel-art screens.** A built-in 5×7 pixel font and batteries made of 10 power blocks (one per 10%). No extra fonts needed.
 - **One service per screen.** Press the button to cycle through them: Claude → ChatGPT / Codex → Claude. Services with no data are skipped.
 - **The LED** glows dim green, yellow or red for the lowest battery on the current screen.
-- **Refreshes every minute** from the hub on your computer. If the hub is unreachable, it keeps the last numbers and shows "Computer offline · last 6:42 PM".
+- **Refreshes every minute** from the hub on your computer, and shows "EMPTY IN 1H 40M" under a battery when you're on pace to run out before it resets.
+- **Says how fresh the numbers are.** "UPDATED 4:10 PM" when current, "DATA 25M OLD" when the hub's numbers are stale (Codex only updates when you run `codex`), and "OFFLINE 25M AGO" when the hub can't be reached. While offline, a battery refills when its reset time passes.
 
 ## What you need
 
@@ -57,5 +58,5 @@ python3 display.py --preview --hub http://127.0.0.1:8765
 ## Troubleshooting
 
 - **"Wrong passcode"**: the passcode changed or was mistyped. Rerun `./install.sh --hub ... --key ...` with the one `battery.py --lan` prints.
-- **"Computer offline"**: the hub isn't running with `--lan`, the computer is asleep, or the two are on different networks. On macOS, allow Python to accept incoming connections if asked.
+- **"OFFLINE … AGO"**: the hub isn't running with `--lan`, the computer is asleep, or the two are on different networks. On macOS, `hub/macos/install.sh` keeps the hub running; allow Python to accept incoming connections if asked.
 - **Blank screen**: check the log (above). Make sure the Whisplay driver's own test works (`python3 ~/Whisplay/example/test.py`) and nothing else is using the screen.

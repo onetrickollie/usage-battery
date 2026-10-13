@@ -118,6 +118,13 @@ function shortLabel(label) {
   return label;
 }
 
+function durationText(sec) {
+  const m = Math.floor(sec / 60);
+  if (m < 60) return Math.max(m, 1) + 'm';
+  if (m < 1440) return `${Math.floor(m / 60)}h ${m % 60}m`;
+  return `${Math.floor(m / 1440)}d ${Math.floor(m % 1440 / 60)}h`;
+}
+
 function resetText(iso) {
   if (!iso) return '';
   const ms = new Date(iso) - Date.now();
@@ -156,6 +163,11 @@ function meterEl(m, width) {
   tip.className = 'tip';
   battery.append(shell, tip);
   el.append(top, battery);
+  if (m.empty_in_seconds) {
+    const e = fitText('empty in ~' + durationText(m.empty_in_seconds) + ' at this pace', 2, color, width);
+    e.classList.add('reset');
+    el.append(e);
+  }
   const reset = resetText(m.resets_at);
   if (reset) {
     const r = fitText(reset, 2, '--muted', width);

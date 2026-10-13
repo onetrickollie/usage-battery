@@ -29,20 +29,29 @@ LABELS = {"five_hour": "5-hour session", "seven_day": "Weekly (all models)"}
 
 
 CLAUDE_SNAPSHOT = os.path.join(HOME, ".usage-battery", "claude.json")
+STATE_FILE = os.path.join(HOME, ".usage-battery", "hub-state.json")  # last live reading + recent history
 
 
 def claude_usage():
-    """Prefer the live /usage reading; fall back to the status line snapshot."""
+    """Newest of: the live /usage reading (kept across restarts) or the status line snapshot."""
     live = LIVE.get("result")
-    if live and time.time() - live["at"] < 3 * REFRESH_SECONDS:
-        return {"name": "Claude", "meters": [recharged(dict(m)) for m in live["meters"]],
-                "note": f"Live from Claude Code, checked {ago(live['at'])}"}
     snap = snapshot_usage()
-    if LIVE.get("error") and (snap.get("error") or not snap.get("meters")):
-        snap = {"name": "Claude", "error": LIVE["error"]}
-    elif LIVE.get("error"):
-        snap["note"] += f" (live check unavailable: {LIVE['error']})"
-    return snap
+    if live and live["at"] >= snap.get("as_of", 0):
+        meters = []
+        for m in live["meters"]:
+            m = recharged(dict(m))
+            m["empty_in_seconds"] = time_to_empty(m)
+            meters.append(m)
+        fresh = time.time() - live["at"] < 3 * REFRESH_SECONDS
+        svc = {"name": "Claude", "meters": meters, "as_of": live["at"],
+               "note": f"{'Live from' if fresh else 'Last reading from'} Claude Code, checked {ago(live['at'])}"}
+    elif snap.get("meters"):
+        svc = snap
+    else:
+        return {"name": "Claude", "error": LIVE.get("error") or snap.get("error")}
+    if LIVE.get("error"):
+        svc["note"] += f" (live check unavailable: {LIVE['error']})"
+    return svc
 
 
 def snapshot_usage():
@@ -62,7 +71,8 @@ def snapshot_usage():
             if isinstance(resets, (int, float)):
                 resets = datetime.fromtimestamp(resets, timezone.utc).isoformat()
             meters.append(recharged({"label": label, "used": float(v["used_percentage"]), "resets_at": resets}))
-    return {"name": "Claude", "meters": meters, "note": f"From your last Claude Code reply, {ago(snap.get('saved_at'))}"}
+    return {"name": "Claude", "meters": meters, "as_of": snap.get("saved_at") or 0,
+            "note": f"From your last Claude Code reply, {ago(snap.get('saved_at'))}"}
 
 
 # --- Live refresh via `claude -p /usage` -------------------------------------------------
@@ -123,9 +133,75 @@ def refresh_live():
         return
     meters = parse_usage(out)
     if meters:
-        LIVE.update(result={"meters": meters, "at": time.time()}, error=None)
+        now = time.time()
+        LIVE.update(result={"meters": meters, "at": now}, error=None)
+        record_history(meters, now)
+        save_state()
     else:
         LIVE["error"] = "Claude Code's /usage output wasn't recognized (signed in with a Pro/Max plan?)"
+
+
+# --- Remembering readings: survive restarts and estimate time left ----------------------
+
+HISTORY = {}             # label -> [[time, used%], ...], oldest first
+HISTORY_KEEP = 7 * 3600  # seconds of readings to keep
+
+
+def record_history(meters, now):
+    for m in meters:
+        points = HISTORY.setdefault(m["label"], [])
+        if points and m["used"] < points[-1][1] - 5:  # the window reset: start over
+            points.clear()
+        points.append([now, m["used"]])
+        while points and now - points[0][0] > HISTORY_KEEP:
+            points.pop(0)
+
+
+def time_to_empty(meter):
+    """Seconds until this limit runs out at the recent pace, or None if it will last until reset."""
+    window = 3600 if meter["label"].startswith("5-hour") else 6 * 3600
+    now = time.time()
+    points = [p for p in HISTORY.get(meter["label"], []) if now - p[0] <= window]
+    if len(points) < 2:
+        return None
+    (t0, u0), (t1, u1) = points[0], points[-1]
+    if t1 - t0 < 600 or u1 - u0 < 2:  # need 10+ minutes and a real change before guessing
+        return None
+    seconds = (100 - u1) / ((u1 - u0) / (t1 - t0)) - (now - t1)
+    resets = seconds_until(meter.get("resets_at"))
+    if seconds <= 0 or (resets is not None and seconds >= resets):
+        return None
+    return int(seconds)
+
+
+def seconds_until(iso):
+    if not iso:
+        return None
+    try:
+        return (datetime.fromisoformat(iso.replace("Z", "+00:00")) - datetime.now(timezone.utc)).total_seconds()
+    except ValueError:
+        return None
+
+
+def save_state():
+    try:
+        os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(STATE_FILE), suffix=".tmp")
+        with os.fdopen(fd, "w") as f:
+            json.dump({"live": LIVE.get("result"), "history": HISTORY}, f)
+        os.replace(tmp, STATE_FILE)
+    except OSError:
+        pass
+
+
+def load_state():
+    try:
+        state = json.load(open(STATE_FILE))
+    except (OSError, ValueError):
+        return
+    if state.get("live"):
+        LIVE["result"] = state["live"]
+    HISTORY.update(state.get("history") or {})
 
 
 def refresh_loop():
@@ -174,7 +250,7 @@ def codex_usage():
                 elif resets is None and w.get("resets_in_seconds") is not None:
                     resets = datetime.fromtimestamp(mtime + w["resets_in_seconds"], timezone.utc).isoformat()
                 meters.append(recharged({"label": label, "used": float(w["used_percent"]), "resets_at": resets}))
-            return {"name": "ChatGPT / Codex", "meters": meters,
+            return {"name": "ChatGPT / Codex", "meters": meters, "as_of": mtime,
                     "note": f"From your last Codex run, {ago(mtime)}"}
     return {"name": "ChatGPT / Codex", "error": "Codex sessions have no rate-limit data yet."}
 
@@ -224,11 +300,27 @@ def display_payload():
         meters = []
         for m in svc.get("meters") or []:
             left = round(max(0.0, min(100.0, 100 - m["used"])))
+            resets_in = seconds_until(m.get("resets_at"))
+            empty_in = m.get("empty_in_seconds")
             meters.append({"label": m["label"], "left": left, "resets": short_time(m.get("resets_at")),
+                           "resets_in": None if resets_in is None else max(0, int(resets_in)),
+                           "empty_in": empty_in, "empty_text": duration_text(empty_in) if empty_in else "",
                            "level": "ok" if left > 50 else "low" if left > 20 else "critical"})
         if meters:
-            services.append({"name": svc["name"], "meters": meters, "note": svc.get("note", "")})
+            as_of = svc.get("as_of")
+            services.append({"name": svc["name"], "meters": meters, "note": svc.get("note", ""),
+                             "age_seconds": int(time.time() - as_of) if as_of else None})
     return {"updated": time.time(), "updated_text": datetime.now().strftime("%-I:%M %p"), "services": services}
+
+
+def duration_text(seconds):
+    """3720 -> '1h 2m', 200000 -> '2d 7h'."""
+    mins = int(seconds // 60)
+    if mins < 60:
+        return f"{max(mins, 1)}m"
+    if mins < 1440:
+        return f"{mins // 60}h {mins % 60}m"
+    return f"{mins // 1440}d {mins % 1440 // 60}h"
 
 
 def short_time(iso):
@@ -317,6 +409,7 @@ if __name__ == "__main__":
                      f"Open http://127.0.0.1:{PORT}, or stop the other copy (Ctrl+C in its window) and try again.")
         raise
     if not DEMO:
+        load_state()
         threading.Thread(target=refresh_loop, daemon=True).start()
     print(f"Usage battery running at http://127.0.0.1:{PORT}{'  (demo data)' if DEMO else ''}  (Ctrl+C to stop)")
     if LAN:
