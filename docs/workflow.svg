@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="960" height="540" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 510" width="960" height="510" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
   <title>Usage Battery workflow</title>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -10,7 +10,7 @@
   </defs>
 
   <!-- Card -->
-  <rect x="0.5" y="0.5" width="959" height="539" rx="18" fill="#fafaf7" stroke="#e2e0d8"/>
+  <rect x="0.5" y="0.5" width="959" height="509" rx="18" fill="#fafaf7" stroke="#e2e0d8"/>
 
   <!-- Column headings -->
   <g font-size="12" font-weight="600" fill="#8a887f" letter-spacing="1.2">
@@ -63,7 +63,7 @@
 
       <circle cx="390" cy="283" r="4" fill="#2f9e5b"/>
       <text x="402" y="287">Serves the numbers locally</text>
-      <text x="402" y="306" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5f5e58">/api/usage</text>
+      <text x="402" y="306" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5f5e58">/api/usage · /api/display</text>
     </g>
   </g>
 
@@ -83,14 +83,12 @@
     <text x="875" y="169" font-size="12" font-weight="600" fill="#1d1d1b">91%</text>
   </g>
   <g>
-    <rect x="690" y="214" width="230" height="126" rx="12" fill="#ffffff" stroke="#9a988f" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <rect x="690" y="214" width="230" height="126" rx="12" fill="#ffffff" stroke="#d9d7ce"/>
     <text x="710" y="244" font-size="16" font-weight="700" fill="#1d1d1b">Desk display</text>
-    <rect x="828" y="230" width="72" height="20" rx="10" fill="#f0efe9"/>
-    <text x="864" y="244" font-size="11.5" font-weight="600" fill="#6b6a64" text-anchor="middle">PLANNED</text>
     <text font-size="13" fill="#5f5e58">
-      <tspan x="710" y="270">ESP32 + e-ink screen</tspan>
-      <tspan x="710" y="290">Paired with your Mac,</tspan>
-      <tspan x="710" y="310">checks in over Wi-Fi</tspan>
+      <tspan x="710" y="270">Raspberry Pi + Whisplay HAT</tspan>
+      <tspan x="710" y="290">Button cycles services,</tspan>
+      <tspan x="710" y="310">LED shows battery level</tspan>
     </text>
   </g>
 
@@ -100,7 +98,7 @@
     <path d="M300,292 C330,292 330,214 356,214" marker-end="url(#arrow)"/>
     <path d="M630,124 L686,124" marker-end="url(#arrow)"/>
   </g>
-  <path d="M630,277 L686,277" stroke="#9a988f" stroke-width="2" stroke-dasharray="6 5" fill="none" marker-end="url(#arrow-planned)"/>
+  <path d="M630,277 L686,277" stroke="#4a4944" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
 
   <!-- Bottom notes -->
   <line x1="40" y1="378" x2="920" y2="378" stroke="#e2e0d8"/>
@@ -108,16 +106,9 @@
     <circle cx="48" cy="410" r="5" fill="#2f9e5b"/>
     <text x="62" y="415"><tspan font-weight="700">No model calls.</tspan> <tspan fill="#5f5e58">/usage only checks your limits, so refreshing doesn't use them up.</tspan></text>
     <circle cx="48" cy="442" r="5" fill="#2f9e5b"/>
-    <text x="62" y="447"><tspan font-weight="700">No logins leave your computer.</tspan> <tspan fill="#5f5e58">Claude Code signs itself in; displays only ever receive percentages.</tspan></text>
+    <text x="62" y="447"><tspan font-weight="700">No logins leave your computer.</tspan> <tspan fill="#5f5e58">Displays only receive percentages, and need a passcode.</tspan></text>
     <circle cx="48" cy="474" r="5" fill="#2f9e5b"/>
     <text x="62" y="479"><tspan font-weight="700">Any device counts.</tspan> <tspan fill="#5f5e58">Usage from the desktop app, claude.ai or your phone shows up within a minute.</tspan></text>
   </g>
 
-  <!-- Legend -->
-  <g font-size="12" fill="#6b6a64">
-    <line x1="40" y1="512" x2="68" y2="512" stroke="#4a4944" stroke-width="2"/>
-    <text x="76" y="516">Working now</text>
-    <line x1="170" y1="512" x2="198" y2="512" stroke="#9a988f" stroke-width="2" stroke-dasharray="6 5"/>
-    <text x="206" y="516">Planned</text>
-  </g>
 </svg>
