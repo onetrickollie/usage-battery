@@ -1,0 +1,13 @@
+[Unit]
+Description=Usage Battery display (PiSugar Whisplay HAT)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=%h/.config/usage-battery/env
+ExecStart=/usr/bin/python3 %h/.local/share/usage-battery/display.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -61,6 +61,15 @@ class Usage:
         return (self.data or {}).get("services") or []
 
 
+def fit(d, text, room, sizes, bold=False):
+    """Largest font from `sizes` that fits `text` in `room` pixels."""
+    for size in sizes:
+        f = font(size, bold)
+        if d.textlength(text, font=f) <= room:
+            return f
+    return f
+
+
 def draw_battery(d, x, y, w, h, left, color):
     d.rounded_rectangle([x, y, x + w, y + h], radius=6, outline=FG, width=2)
     d.rounded_rectangle([x + w + 2, y + h // 2 - 5, x + w + 6, y + h // 2 + 5], radius=2, fill=FG)
@@ -84,12 +93,8 @@ def render(usage, index):
     svc = services[index % len(services)]
     # Header: service name and page dots
     n = len(services)
-    title_font, room = F_TITLE, W - 18 - (n * 14 + 20)  # leave space for the page dots
-    for size in (21, 19, 17, 15):
-        title_font = font(size, True)
-        if d.textlength(svc["name"], font=title_font) <= room:
-            break
-    d.text((18, 22), svc["name"], font=title_font, fill=FG, anchor="lm")
+    room = W - 18 - (n * 14 + 20)  # leave space for the page dots
+    d.text((18, 22), svc["name"], font=fit(d, svc["name"], room, (21, 19, 17, 15), bold=True), fill=FG, anchor="lm")
     for i in range(n):
         cx = W - 22 - (n - 1 - i) * 14
         d.ellipse([cx - 4, 18, cx + 4, 26], fill=FG if i == index % n else TRACK)
@@ -101,8 +106,10 @@ def render(usage, index):
     for i, m in enumerate(meters):
         y = top + i * slot
         color = LEVEL_COLORS.get(m["level"], FG)
-        d.text((18, y + 10), m["label"], font=F_LABEL, fill=FG, anchor="lm")
-        d.text((W - 18, y + 10), f"{m['left']}%", font=F_PCT, fill=color, anchor="rm")
+        pct = f"{m['left']}%"
+        room = W - 36 - d.textlength(pct, font=F_PCT) - 8
+        d.text((18, y + 10), m["label"], font=fit(d, m["label"], room, (15, 14, 13, 12)), fill=FG, anchor="lm")
+        d.text((W - 18, y + 10), pct, font=F_PCT, fill=color, anchor="rm")
         draw_battery(d, 18, y + 28, W - 46, 26, m["left"], color)
         if m.get("resets"):
             d.text((18, y + 70), f"Recharges {m['resets']}", font=F_SMALL, fill=MUTED, anchor="lm")
