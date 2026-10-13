@@ -51,7 +51,7 @@ Usage limits belong to your Claude account, not to one app, so usage from claude
 
 - **Updates when you use Claude Code.** The numbers refresh on each Claude Code reply. Usage elsewhere (claude.ai, the desktop chat app, your phone) still counts against your limits, but the battery won't show it until your next Claude Code reply. The page shows how old the numbers are.
 - **Needs Claude Code on a Pro or Max plan.** Claude Code only shares usage limits for those plans. People who only use Claude in a browser, the desktop chat app or on their phone can't use this yet. Anthropic doesn't offer outside apps a supported way to read usage, and its terms don't allow third-party tools to use Claude plan logins.
-- **Desktop app Code tab: not confirmed yet.** It's tested with Claude Code in Terminal. Whether the Claude desktop app's Code tab runs status line scripts hasn't been verified.
+- **Only Claude Code in Terminal updates the battery.** The Claude desktop app's Code tab doesn't run status line scripts (tested with a fresh session), so working there won't refresh the numbers. Its usage still counts and shows up on your next Terminal Claude Code reply.
 - **Codex numbers are only as fresh as your last Codex run.** A window whose reset time has passed is shown as full.
 - **No ChatGPT web or OpenAI API usage.** ChatGPT doesn't offer outside tools a way to read your remaining usage, and OpenAI's API usage reports need an organization admin key.
 - **Prototype.** The page has to be started by hand and only runs while its terminal window is open.
