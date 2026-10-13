@@ -48,7 +48,7 @@ It prints the address and a passcode for your display. Other devices must send t
 | **Browser** | Full page with every battery, on the computer running the hub | Nothing extra: open http://127.0.0.1:8765 |
 | **Whisplay HAT** on a Raspberry Pi | 1.69" screen, button to cycle services, LED shows battery level, starts at boot | [displays/whisplay](displays/whisplay/README.md) |
 
-More displays (such as e-ink panels) can be added as new folders under `displays/`. Each one only needs to read `/api/display` from the hub.
+More displays (such as e-ink panels) can be added as new folders under `displays/`. Each one only reads `/api/display` from the hub; [displays/README.md](displays/README.md) explains how to build one.
 
 ## How it works
 
