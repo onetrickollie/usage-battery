@@ -9,17 +9,20 @@ Shows your remaining AI usage limits as batteries:
 
 This script never reads your logins itself.
 
-Run:  python3 battery.py          -> http://127.0.0.1:8765
+Run:  python3 battery.py          -> http://127.0.0.1:8765 (this computer only)
+      python3 battery.py --lan    -> also reachable from devices on your Wi-Fi, with a passcode
       python3 battery.py --demo   -> fake data, for trying the UI
 """
-import glob, json, os, re, shutil, subprocess, sys, tempfile, threading, time
+import glob, hmac, json, os, re, secrets, socket, shutil, subprocess, sys, tempfile, threading, time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 
 PORT = 8765
 REFRESH_SECONDS = 60
 DEMO = "--demo" in sys.argv
+LAN = "--lan" in sys.argv
 HOME = os.path.expanduser("~")
 
 LABELS = {"five_hour": "5-hour session", "seven_day": "Weekly (all models)"}
@@ -84,9 +87,9 @@ def parse_reset(text):
     day, clock, tz = m.groups()
     try:
         zone = ZoneInfo(tz) if tz else datetime.now().astimezone().tzinfo
-        fmt = "%b %d %I:%M%p" if ":" in clock else "%b %d %I%p"
+        fmt = "%Y %b %d %I:%M%p" if ":" in clock else "%Y %b %d %I%p"
         now = datetime.now(zone)
-        when = datetime.strptime(f"{day} {clock.upper()}", fmt).replace(year=now.year, tzinfo=zone)
+        when = datetime.strptime(f"{now.year} {day} {clock.upper()}", fmt).replace(tzinfo=zone)
         if (now - when).days > 180:  # e.g. a Jan 2 reset seen on Dec 30
             when = when.replace(year=now.year + 1)
         return when.isoformat()
@@ -210,12 +213,87 @@ def demo():
                 {"label": "Weekly", "used": 55, "resets_at": soon(120)}]}]
 
 
+def all_services():
+    return demo() if DEMO else [claude_usage(), codex_usage()]
+
+
+def display_payload():
+    """Compact data for small screens: only services that have numbers, times pre-formatted."""
+    services = []
+    for svc in all_services():
+        meters = []
+        for m in svc.get("meters") or []:
+            left = round(max(0.0, min(100.0, 100 - m["used"])))
+            meters.append({"label": m["label"], "left": left, "resets": short_time(m.get("resets_at")),
+                           "level": "ok" if left > 50 else "low" if left > 20 else "critical"})
+        if meters:
+            services.append({"name": svc["name"], "meters": meters, "note": svc.get("note", "")})
+    return {"updated": time.time(), "updated_text": datetime.now().strftime("%-I:%M %p"), "services": services}
+
+
+def short_time(iso):
+    """'2026-10-12T20:30:00-07:00' -> '8:30 PM' today, 'Sun 4:00 AM' otherwise."""
+    if not iso:
+        return ""
+    try:
+        when = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone()
+    except ValueError:
+        return ""
+    clock = when.strftime("%-I:%M %p")
+    return clock if when.date() == datetime.now().date() else f"{when.strftime('%a')} {clock}"
+
+
+TOKEN_FILE = os.path.join(HOME, ".usage-battery", "lan_passcode")
+
+
+def lan_passcode():
+    """Load the passcode other devices must send, creating one on first use."""
+    try:
+        code = open(TOKEN_FILE).read().strip()
+        if code:
+            return code
+    except OSError:
+        pass
+    os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
+    code = secrets.token_urlsafe(9)
+    fd = os.open(TOKEN_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(code)
+    return code
+
+
+def lan_address():
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))  # no packets sent; just picks the Wi-Fi interface
+            return s.getsockname()[0]
+    except OSError:
+        return None
+
+
+PASSCODE = None
+
+
 class Handler(BaseHTTPRequestHandler):
+    def allowed(self, query):
+        """This computer is always allowed; other devices need the passcode."""
+        if self.client_address[0] in ("127.0.0.1", "::1"):
+            return True
+        sent = self.headers.get("X-Battery-Key") or (query.get("key") or [""])[0]
+        return bool(PASSCODE) and hmac.compare_digest(sent.encode(), PASSCODE.encode())
+
     def do_GET(self):
-        if self.path.startswith("/api/usage"):
-            body = json.dumps({"demo": DEMO, "services": demo() if DEMO else [claude_usage(), codex_usage()]}).encode()
+        url = urlparse(self.path)
+        query = parse_qs(url.query)
+        if url.path.startswith("/api/") and not self.allowed(query):
+            self.send_error(401, "Passcode required"); return
+        if url.path == "/api/usage":
+            body = json.dumps({"demo": DEMO, "services": all_services()}).encode()
             ctype = "application/json"
-        elif self.path in ("/", "/index.html"):
+        elif url.path == "/api/display":
+            body = json.dumps(display_payload()).encode()
+            ctype = "application/json"
+        elif url.path in ("/", "/index.html"):
             body = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "battery.html"), "rb").read()
             ctype = "text/html; charset=utf-8"
         else:
@@ -232,7 +310,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+        server = ThreadingHTTPServer(("0.0.0.0" if LAN else "127.0.0.1", PORT), Handler)
     except OSError as e:
         if e.errno in (48, 98):  # address already in use (macOS, Linux)
             sys.exit(f"Port {PORT} is already in use - Usage Battery is probably already running.\n"
@@ -241,6 +319,13 @@ if __name__ == "__main__":
     if not DEMO:
         threading.Thread(target=refresh_loop, daemon=True).start()
     print(f"Usage battery running at http://127.0.0.1:{PORT}{'  (demo data)' if DEMO else ''}  (Ctrl+C to stop)")
+    if LAN:
+        PASSCODE = lan_passcode()
+        host = socket.gethostname()
+        host = host if host.endswith(".local") else host + ".local"
+        print(f"Other devices on your Wi-Fi: http://{host}:{PORT}/?key={PASSCODE}"
+              + (f"  (or http://{lan_address()}:{PORT}/?key={PASSCODE})" if lan_address() else ""))
+        print(f"Passcode: {PASSCODE}   (saved in {TOKEN_FILE})")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

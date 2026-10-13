@@ -73,12 +73,15 @@ function render(services) {
 
 async function load() {
   try {
-    const data = await (await fetch('/api/usage')).json();
+    const key = new URLSearchParams(location.search).get('key');
+    const res = await fetch('/api/usage' + (key ? '?key=' + encodeURIComponent(key) : ''));
+    if (res.status === 401) throw new Error('passcode');
+    const data = await res.json();
     document.getElementById('banner').style.display = data.demo ? 'block' : 'none';
     render(data.services);
     document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch (e) {
-    document.getElementById('updated').textContent = 'Server not reachable';
+    document.getElementById('updated').textContent = e.message === 'passcode' ? 'Passcode missing or wrong' : 'Server not reachable';
   }
 }
 load();
