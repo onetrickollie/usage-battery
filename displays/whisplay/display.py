@@ -29,7 +29,7 @@ class Usage:
         self.url = hub.rstrip("/") + "/api/display"
         self.key = key
         self.data = None          # last good payload
-        self.last_ok = None       # time.time() of last good fetch
+        self.last_ok = None       # time.monotonic() of last good fetch (no wall clock needed)
         self.error = "Connecting..."
 
     def fetch(self):
@@ -37,7 +37,7 @@ class Usage:
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 self.data = json.load(resp)
-            self.last_ok, self.error = time.time(), None
+            self.last_ok, self.error = time.monotonic(), None
         except urllib.error.HTTPError as e:
             self.error = "Wrong passcode" if e.code == 401 else f"Hub error {e.code}"
         except Exception:
@@ -46,6 +46,11 @@ class Usage:
     @property
     def services(self):
         return (self.data or {}).get("services") or []
+
+    @property
+    def offline_for(self):
+        """Seconds since the last good answer while the hub is unreachable, else 0."""
+        return time.monotonic() - self.last_ok if self.error and self.last_ok else 0
 
 
 # 5x7 pixel font. Text is drawn in capitals; unknown characters show as "?".
@@ -140,7 +145,8 @@ def render(usage, index):
     for x in range(8, LW - 8, 2):
         d.point((x, 24), fill=EMPTY)
 
-    meters = svc["meters"][:3]
+    offline = usage.offline_for
+    meters = [adjust_for_offline(m, offline) for m in svc["meters"][:3]]
     slot = 47 if len(meters) <= 2 else 33
     order, worst = ["critical", "low", "ok"], None
     for i, m in enumerate(meters):
@@ -150,18 +156,43 @@ def render(usage, index):
         pct = f"{m['left']}%"
         text(d, LW - 8 - text_width(pct, 2) + 1, y, pct, color, 2)
         battery(d, 8, y + 17, m["left"], color)
-        if m.get("resets") and len(meters) <= 2:
-            text(d, 8, y + 35, "RESETS " + m["resets"].replace(":00", ""), MUTED)
+        if len(meters) <= 2:
+            if m.get("empty_in"):
+                text(d, 8, y + 35, "EMPTY IN " + short_duration(m["empty_in"]), color)
+            elif m.get("resets"):
+                text(d, 8, y + 35, "RESETS " + m["resets"].replace(":00", ""), MUTED)
         if worst is None or order.index(m["level"]) < order.index(worst):
             worst = m["level"]
 
-    if usage.error:
-        since = time.strftime("%-I:%M %p", time.localtime(usage.last_ok)) if usage.last_ok else ""
-        label = "WRONG PASSCODE" if "passcode" in usage.error.lower() else f"OFFLINE {since}".strip()
-        centered(d, LH - 11, label, LEVEL_COLORS["low"])
+    age = (svc.get("age_seconds") or 0) + offline
+    if usage.error and "passcode" in usage.error.lower():
+        centered(d, LH - 11, "WRONG PASSCODE", LEVEL_COLORS["low"])
+    elif usage.error:
+        centered(d, LH - 11, "OFFLINE " + (short_duration(age) + " AGO" if age >= 60 else "JUST NOW"), LEVEL_COLORS["low"])
+    elif age >= 180:
+        centered(d, LH - 11, "DATA " + short_duration(age) + " OLD", LEVEL_COLORS["low"])
     else:
         centered(d, LH - 11, f"UPDATED {usage.data.get('updated_text', '')}", MUTED)
     return img.resize((W, H), Image.NEAREST), (None if usage.error else worst)
+
+
+def adjust_for_offline(m, offline):
+    """While the hub is unreachable, refill batteries whose reset time has passed and drop stale estimates."""
+    if not offline:
+        return m
+    m = dict(m, empty_in=None)
+    if m.get("resets_in") is not None and offline >= m["resets_in"]:
+        m.update(left=100, level="ok", resets="")
+    return m
+
+
+def short_duration(seconds):
+    mins = int(seconds // 60)
+    if mins < 60:
+        return f"{max(mins, 1)}M"
+    if mins < 1440:
+        return f"{mins // 60}H {mins % 60}M" if mins % 60 else f"{mins // 60}H"
+    return f"{mins // 1440}D {mins % 1440 // 60}H" if mins % 1440 // 60 else f"{mins // 1440}D"
 
 
 def rgb565(img):
