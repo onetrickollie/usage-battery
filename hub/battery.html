@@ -5,70 +5,182 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Usage Battery</title>
 <style>
-  :root { --bg:#f6f6f3; --card:#fff; --ink:#1d1d1b; --muted:#77756f; --line:#dedcd5;
-          --full:#2f9e5b; --mid:#d39b1f; --low:#d2453a; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --card:#1f1f1d; --ink:#ecebe6;
-          --muted:#9b998f; --line:#363531; } }
+  :root { --bg:#10101c; --card:#181828; --ink:#ececE4; --muted:#7a7a92; --empty:#2c2c40;
+          --ok:#3ee07a; --low:#ffd23f; --critical:#ff4d4d; --shadow:#05050a; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink);
-         font:15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  main { max-width:720px; margin:0 auto; padding:32px 16px; }
-  header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:24px; }
-  h1 { font-size:20px; margin:0; }
-  #updated { color:var(--muted); font-size:13px; }
-  section { background:var(--card); border:1px solid var(--line); border-radius:14px;
-            padding:20px; margin-bottom:16px; }
-  h2 { font-size:16px; margin:0 0 4px; }
-  .note, .err { font-size:13px; color:var(--muted); margin:0 0 12px; }
-  .err { color:var(--low); }
-  .meter { display:grid; grid-template-columns:1fr auto; gap:6px 16px; align-items:center; margin-top:14px; }
-  .label { font-weight:600; font-size:14px; }
-  .reset { color:var(--muted); font-size:12px; grid-column:1 / -1; }
-  .pct { font-variant-numeric:tabular-nums; font-weight:700; font-size:18px; text-align:right; }
-  .pct small { display:block; font-weight:500; font-size:12px; color:var(--muted); }
-  #banner { display:none; background:var(--mid); color:#1d1d1b; font-weight:600; font-size:13px;
-            padding:10px 14px; border-radius:10px; margin-bottom:16px; }
-  .battery { grid-column:1 / -1; display:flex; align-items:center; }
-  .shell { flex:1; height:34px; border:3px solid var(--ink); border-radius:8px; padding:3px; }
-  .fill { height:100%; border-radius:3px; transition:width .6s ease, background .6s; }
-  .tip { width:6px; height:14px; background:var(--ink); border-radius:0 3px 3px 0; margin-left:2px; }
+         font:14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  main { max-width:640px; margin:0 auto; padding:32px 16px 48px; }
+  canvas { image-rendering:pixelated; image-rendering:crisp-edges; display:block; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; gap:12px;
+           flex-wrap:wrap; margin-bottom:28px; padding-bottom:14px;
+           border-bottom:4px dotted var(--empty); }
+  section { background:var(--card); border:4px solid var(--ink); box-shadow:8px 8px 0 var(--shadow);
+            padding:20px 20px 8px; margin-bottom:28px; }
+  .lines { display:flex; flex-direction:column; align-items:flex-start; gap:6px; margin:10px 0 4px; }
+  .meter { margin:18px 0 16px; }
+  .top { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:10px; }
+  .pct { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .battery { display:flex; align-items:center; }
+  .shell { flex:1; display:grid; grid-template-columns:repeat(10, 1fr); gap:4px;
+           border:4px solid var(--ink); padding:4px; }
+  .block { height:22px; background:var(--empty); }
+  .tip { width:8px; height:16px; background:var(--ink); }
+  .reset { margin-top:10px; }
+  #banner { display:none; background:var(--low); padding:12px; margin-bottom:24px; }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
 </style>
 </head>
 <body>
 <main>
-  <header><h1>🔋 Usage Battery</h1><span id="updated">loading…</span></header>
-  <div id="banner">Demo mode: these are made-up numbers, not your account. Run <code>python3 battery.py</code> without --demo for real usage.</div>
+  <header><div id="title"></div><div id="updated"></div></header>
+  <div id="banner"></div>
   <div id="services"></div>
 </main>
 <script>
-const color = r => r > 50 ? 'var(--full)' : r > 20 ? 'var(--mid)' : 'var(--low)';
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Same 5x7 pixel font as the Whisplay display (displays/whisplay/display.py).
+const GLYPHS = {
+  A:"01110 10001 10001 11111 10001 10001 10001", B:"11110 10001 10001 11110 10001 10001 11110",
+  C:"01110 10001 10000 10000 10000 10001 01110", D:"11110 10001 10001 10001 10001 10001 11110",
+  E:"11111 10000 10000 11110 10000 10000 11111", F:"11111 10000 10000 11110 10000 10000 10000",
+  G:"01110 10001 10000 10111 10001 10001 01111", H:"10001 10001 10001 11111 10001 10001 10001",
+  I:"01110 00100 00100 00100 00100 00100 01110", J:"00111 00010 00010 00010 00010 10010 01100",
+  K:"10001 10010 10100 11000 10100 10010 10001", L:"10000 10000 10000 10000 10000 10000 11111",
+  M:"10001 11011 10101 10101 10001 10001 10001", N:"10001 10001 11001 10101 10011 10001 10001",
+  O:"01110 10001 10001 10001 10001 10001 01110", P:"11110 10001 10001 11110 10000 10000 10000",
+  Q:"01110 10001 10001 10001 10101 10010 01101", R:"11110 10001 10001 11110 10100 10010 10001",
+  S:"01111 10000 10000 01110 00001 00001 11110", T:"11111 00100 00100 00100 00100 00100 00100",
+  U:"10001 10001 10001 10001 10001 10001 01110", V:"10001 10001 10001 10001 10001 01010 00100",
+  W:"10001 10001 10001 10101 10101 10101 01010", X:"10001 10001 01010 00100 01010 10001 10001",
+  Y:"10001 10001 01010 00100 00100 00100 00100", Z:"11111 00001 00010 00100 01000 10000 11111",
+  "0":"01110 10001 10011 10101 11001 10001 01110", "1":"00100 01100 00100 00100 00100 00100 01110",
+  "2":"01110 10001 00001 00010 00100 01000 11111", "3":"11111 00010 00100 00010 00001 10001 01110",
+  "4":"00010 00110 01010 10010 11111 00010 00010", "5":"11111 10000 11110 00001 00001 10001 01110",
+  "6":"00110 01000 10000 11110 10001 10001 01110", "7":"11111 00001 00010 00100 01000 01000 01000",
+  "8":"01110 10001 10001 01110 10001 10001 01110", "9":"01110 10001 10001 01111 00001 00010 01100",
+  "%":"11000 11001 00010 00100 01000 10011 00011", ":":"00000 01100 01100 00000 01100 01100 00000",
+  "/":"00000 00001 00010 00100 01000 10000 00000", ".":"00000 00000 00000 00000 00000 01100 01100",
+  "-":"00000 00000 00000 11111 00000 00000 00000", "(":"00010 00100 01000 01000 01000 00100 00010",
+  ")":"01000 00100 00010 00010 00010 00100 01000", " ":"00000 00000 00000 00000 00000 00000 00000",
+  "!":"00100 00100 00100 00100 00100 00000 00100", "?":"01110 10001 00001 00010 00100 00000 00100",
+  "'":"00100 00100 01000 00000 00000 00000 00000", ",":"00000 00000 00000 00000 01100 00100 01000",
+};
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+function pixelText(str, scale, color) {
+  const s = String(str).toUpperCase();
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, (s.length * 6 - 1) * scale);
+  c.height = 7 * scale;
+  c.setAttribute('role', 'img');
+  c.setAttribute('aria-label', str);
+  const g = c.getContext('2d');
+  g.fillStyle = css(color);
+  [...s].forEach((ch, i) => {
+    (GLYPHS[ch] || GLYPHS['?']).split(' ').forEach((row, r) => {
+      [...row].forEach((bit, col) => {
+        if (bit === '1') g.fillRect((i * 6 + col) * scale, r * scale, scale, scale);
+      });
+    });
+  });
+  return c;
+}
+
+// Largest scale (down to 1) at which the text fits in `width` pixels.
+function fitText(str, scale, color, width) {
+  while (scale > 1 && (String(str).length * 6 - 1) * scale > width) scale--;
+  return pixelText(str, scale, color);
+}
+
+// Long text (notes, errors) wraps into several pixel lines.
+function pixelLines(str, scale, color, width) {
+  const max = Math.max(8, Math.floor((width + scale) / (6 * scale)));
+  const box = document.createElement('div');
+  box.className = 'lines';
+  let line = '';
+  for (const word of String(str).split(/\s+/)) {
+    if (line && (line + ' ' + word).length > max) { box.append(pixelText(line, scale, color)); line = ''; }
+    line = line ? line + ' ' + word : word;
+  }
+  if (line) box.append(pixelText(line, scale, color));
+  return box;
+}
+
+const level = left => left > 50 ? '--ok' : left > 20 ? '--low' : '--critical';
+
+function shortLabel(label) {
+  const l = label.toLowerCase();
+  if (l.startsWith('5-hour')) return '5-hour';
+  if (l.startsWith('weekly')) {
+    const scope = (label.match(/\(([^)]+)\)/) || [])[1];
+    return !scope || scope.toLowerCase() === 'all models' ? 'weekly' : 'weekly ' + scope;
+  }
+  return label;
+}
 
 function resetText(iso) {
   if (!iso) return '';
   const ms = new Date(iso) - Date.now();
-  if (ms <= 0) return 'Resetting now';
+  if (ms <= 0) return 'resetting now';
   const h = Math.floor(ms / 3.6e6), m = Math.floor(ms % 3.6e6 / 6e4);
   const span = h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : h ? `${h}h ${m}m` : `${m}m`;
-  return `Recharges in ${span} · ${new Date(iso).toLocaleString([], {weekday:'short', hour:'numeric', minute:'2-digit'})}`;
+  const when = new Date(iso).toLocaleString('en-US', {weekday: 'short', hour: 'numeric', minute: '2-digit'});
+  return `resets in ${span} - ${when}`;
+}
+
+function meterEl(m, width) {
+  const left = Math.round(Math.max(0, Math.min(100, 100 - m.used)));
+  const color = level(left);
+  const el = document.createElement('div');
+  el.className = 'meter';
+  const top = document.createElement('div');
+  top.className = 'top';
+  const pct = document.createElement('div');
+  pct.className = 'pct';
+  pct.append(pixelText(left + '%', 5, color), pixelText(Math.round(m.used) + '% used', 2, '--muted'));
+  top.append(pixelText(shortLabel(m.label), 3, '--ink'), pct);
+  const battery = document.createElement('div');
+  battery.className = 'battery';
+  battery.setAttribute('role', 'img');
+  battery.setAttribute('aria-label', `${left}% left`);
+  const shell = document.createElement('div');
+  shell.className = 'shell';
+  const lit = Math.round(left / 10);
+  for (let i = 0; i < 10; i++) {
+    const b = document.createElement('div');
+    b.className = 'block';
+    if (i < lit) b.style.background = `var(${color})`;
+    shell.append(b);
+  }
+  const tip = document.createElement('div');
+  tip.className = 'tip';
+  battery.append(shell, tip);
+  el.append(top, battery);
+  const reset = resetText(m.resets_at);
+  if (reset) {
+    const r = fitText(reset, 2, '--muted', width);
+    r.classList.add('reset');
+    el.append(r);
+  }
+  return el;
 }
 
 function render(services) {
-  document.getElementById('services').innerHTML = services.map(s => `
-    <section>
-      <h2>${esc(s.name)}</h2>
-      ${s.error ? `<p class="err">${esc(s.error)}</p>` : ''}
-      ${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}
-      ${(s.meters || []).map(m => {
-        const left = Math.max(0, Math.min(100, 100 - m.used));
-        return `<div class="meter">
-          <span class="label">${esc(m.label)}</span>
-          <span class="pct" style="color:${color(left)}">${Math.round(left)}% left<small>${Math.round(m.used)}% used</small></span>
-          <div class="battery"><div class="shell"><div class="fill" style="width:${left}%;background:${color(left)}"></div></div><div class="tip"></div></div>
-          <span class="reset">${esc(resetText(m.resets_at))}</span>
-        </div>`;
-      }).join('')}
-    </section>`).join('');
+  const root = document.getElementById('services');
+  root.replaceChildren();
+  for (const s of services) {
+    const sec = document.createElement('section');
+    root.append(sec);
+    const width = sec.clientWidth - 48;
+    sec.append(fitText(s.name, 4, '--ink', width));
+    if (s.error) sec.append(pixelLines(s.error, 2, '--critical', width));
+    if (s.note) sec.append(pixelLines(s.note, 2, '--muted', width));
+    for (const m of s.meters || []) sec.append(meterEl(m, width));
+  }
+}
+
+function setUpdated(textValue, color) {
+  document.getElementById('updated').replaceChildren(pixelText(textValue, 2, color));
 }
 
 async function load() {
@@ -77,13 +189,20 @@ async function load() {
     const res = await fetch('/api/usage' + (key ? '?key=' + encodeURIComponent(key) : ''));
     if (res.status === 401) throw new Error('passcode');
     const data = await res.json();
-    document.getElementById('banner').style.display = data.demo ? 'block' : 'none';
+    const banner = document.getElementById('banner');
+    banner.style.display = data.demo ? 'block' : 'none';
+    if (data.demo && !banner.firstChild) {
+      banner.append(pixelLines('Demo mode: made-up numbers. Run battery.py without --demo for real usage.', 2, '--bg', banner.clientWidth - 24));
+    }
     render(data.services);
-    document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    setUpdated('updated ' + new Date().toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}), '--muted');
   } catch (e) {
-    document.getElementById('updated').textContent = e.message === 'passcode' ? 'Passcode missing or wrong' : 'Server not reachable';
+    setUpdated(e.message === 'passcode' ? 'passcode missing or wrong' : 'hub not reachable', '--low');
   }
 }
+
+document.getElementById('title').append(fitText('Usage Battery', 4, '--ink', document.querySelector('main').clientWidth - 32));
+document.title = 'Usage Battery';
 load();
 setInterval(load, 60000);
 </script>
