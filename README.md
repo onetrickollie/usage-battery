@@ -4,7 +4,7 @@ A battery meter for your AI usage limits. Instead of digging through settings pa
 
 - **Claude**: your 5-hour session limit and weekly limit, with the time until each one recharges.
 - **ChatGPT / Codex**: your 5-hour and weekly Codex limits.
-- Batteries are green above 50% left, yellow down to 20%, and red below that.
+- A pixel-art look: each battery is 10 power blocks, one per 10% left, and they're green above 50%, yellow down to 20%, and red below that.
 - It refreshes every minute on its own, and picks up usage from any device: Claude Code, the desktop app, claude.ai and your phone.
 
 ![How Usage Battery works: usage from your Claude account and Codex goes to battery.py on your computer, which refreshes every 60 seconds and feeds the browser page and a desk display](docs/workflow.svg)

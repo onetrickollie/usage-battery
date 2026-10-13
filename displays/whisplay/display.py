@@ -2,7 +2,8 @@
 """Usage Battery display for a Raspberry Pi with a PiSugar Whisplay HAT.
 
 Every 60 seconds it asks the hub (battery.py --lan on your computer) for your usage
-and draws one service per screen. Press the button to cycle through services
+and draws one service per screen in a pixel-art style:
+each battery is 10 power blocks, one per 10%. Press the button to cycle through services
 (e.g. Claude -> ChatGPT / Codex -> Claude). The RGB LED shows the lowest battery
 on the current screen: green, yellow or red.
 
@@ -12,28 +13,14 @@ Preview the screens on any computer (writes PNGs, no hardware needed):
   python3 display.py --preview --hub http://127.0.0.1:8765
 """
 import argparse, json, os, sys, threading, time, urllib.request
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 W, H = 240, 280
+LW, LH, SCALE = 120, 140, 2  # draw with 120x140 "big pixels", shown at 240x280
 REFRESH_SECONDS = 60
-BG, FG, MUTED, TRACK = (14, 14, 16), (240, 240, 236), (150, 148, 140), (52, 52, 56)
-LEVEL_COLORS = {"ok": (52, 199, 89), "low": (255, 196, 0), "critical": (255, 69, 58)}
+BG, FG, MUTED, EMPTY = (16, 16, 28), (236, 236, 228), (122, 122, 146), (44, 44, 64)
+LEVEL_COLORS = {"ok": (62, 224, 122), "low": (255, 210, 63), "critical": (255, 77, 77)}
 LED_COLORS = {"ok": (0, 40, 0), "low": (60, 30, 0), "critical": (60, 0, 0)}  # kept dim
-FONT_PATHS = {
-    False: ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/System/Library/Fonts/Supplemental/Arial.ttf"],
-    True: ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"],
-}
-
-
-def font(size, bold=False):
-    for path in FONT_PATHS[bold]:
-        if os.path.exists(path):
-            return ImageFont.truetype(path, size)
-    return ImageFont.load_default()
-
-
-F_TITLE, F_LABEL, F_PCT, F_SMALL = font(21, True), font(15), font(24, True), font(12)
-
 
 class Usage:
     """Fetches /api/display from the hub and remembers the last good answer."""
@@ -43,7 +30,7 @@ class Usage:
         self.key = key
         self.data = None          # last good payload
         self.last_ok = None       # time.time() of last good fetch
-        self.error = "Connecting to your computer..."
+        self.error = "Connecting..."
 
     def fetch(self):
         req = urllib.request.Request(self.url, headers={"X-Battery-Key": self.key} if self.key else {})
@@ -61,70 +48,120 @@ class Usage:
         return (self.data or {}).get("services") or []
 
 
-def fit(d, text, room, sizes, bold=False):
-    """Largest font from `sizes` that fits `text` in `room` pixels."""
-    for size in sizes:
-        f = font(size, bold)
-        if d.textlength(text, font=f) <= room:
-            return f
-    return f
+# 5x7 pixel font. Text is drawn in capitals; unknown characters show as "?".
+GLYPHS = {
+    "A": "01110 10001 10001 11111 10001 10001 10001", "B": "11110 10001 10001 11110 10001 10001 11110",
+    "C": "01110 10001 10000 10000 10000 10001 01110", "D": "11110 10001 10001 10001 10001 10001 11110",
+    "E": "11111 10000 10000 11110 10000 10000 11111", "F": "11111 10000 10000 11110 10000 10000 10000",
+    "G": "01110 10001 10000 10111 10001 10001 01111", "H": "10001 10001 10001 11111 10001 10001 10001",
+    "I": "01110 00100 00100 00100 00100 00100 01110", "J": "00111 00010 00010 00010 00010 10010 01100",
+    "K": "10001 10010 10100 11000 10100 10010 10001", "L": "10000 10000 10000 10000 10000 10000 11111",
+    "M": "10001 11011 10101 10101 10001 10001 10001", "N": "10001 10001 11001 10101 10011 10001 10001",
+    "O": "01110 10001 10001 10001 10001 10001 01110", "P": "11110 10001 10001 11110 10000 10000 10000",
+    "Q": "01110 10001 10001 10001 10101 10010 01101", "R": "11110 10001 10001 11110 10100 10010 10001",
+    "S": "01111 10000 10000 01110 00001 00001 11110", "T": "11111 00100 00100 00100 00100 00100 00100",
+    "U": "10001 10001 10001 10001 10001 10001 01110", "V": "10001 10001 10001 10001 10001 01010 00100",
+    "W": "10001 10001 10001 10101 10101 10101 01010", "X": "10001 10001 01010 00100 01010 10001 10001",
+    "Y": "10001 10001 01010 00100 00100 00100 00100", "Z": "11111 00001 00010 00100 01000 10000 11111",
+    "0": "01110 10001 10011 10101 11001 10001 01110", "1": "00100 01100 00100 00100 00100 00100 01110",
+    "2": "01110 10001 00001 00010 00100 01000 11111", "3": "11111 00010 00100 00010 00001 10001 01110",
+    "4": "00010 00110 01010 10010 11111 00010 00010", "5": "11111 10000 11110 00001 00001 10001 01110",
+    "6": "00110 01000 10000 11110 10001 10001 01110", "7": "11111 00001 00010 00100 01000 01000 01000",
+    "8": "01110 10001 10001 01110 10001 10001 01110", "9": "01110 10001 10001 01111 00001 00010 01100",
+    "%": "11000 11001 00010 00100 01000 10011 00011", ":": "00000 01100 01100 00000 01100 01100 00000",
+    "/": "00000 00001 00010 00100 01000 10000 00000", ".": "00000 00000 00000 00000 00000 01100 01100",
+    "-": "00000 00000 00000 11111 00000 00000 00000", "(": "00010 00100 01000 01000 01000 00100 00010",
+    ")": "01000 00100 00010 00010 00010 00100 01000", " ": "00000 00000 00000 00000 00000 00000 00000",
+    "!": "00100 00100 00100 00100 00100 00000 00100", "?": "01110 10001 00001 00010 00100 00000 00100",
+    "'": "00100 00100 01000 00000 00000 00000 00000", ",": "00000 00000 00000 00000 01100 00100 01000",
+}
 
 
-def draw_battery(d, x, y, w, h, left, color):
-    d.rounded_rectangle([x, y, x + w, y + h], radius=6, outline=FG, width=2)
-    d.rounded_rectangle([x + w + 2, y + h // 2 - 5, x + w + 6, y + h // 2 + 5], radius=2, fill=FG)
-    inner = w - 8
-    fill = round(inner * left / 100)
-    d.rounded_rectangle([x + 4, y + 4, x + w - 4, y + h - 4], radius=3, fill=TRACK)
-    if fill > 0:
-        d.rounded_rectangle([x + 4, y + 4, x + 4 + fill, y + h - 4], radius=3, fill=color)
+def text_width(s, size=1):
+    return max(0, len(s) * 6 - 1) * size
+
+
+def text(d, x, y, s, color, size=1):
+    for ch in s.upper():
+        for r, row in enumerate(GLYPHS.get(ch, GLYPHS["?"]).split()):
+            for c, bit in enumerate(row):
+                if bit == "1":
+                    d.rectangle([x + c * size, y + r * size, x + (c + 1) * size - 1, y + (r + 1) * size - 1], fill=color)
+        x += 6 * size
+
+
+def centered(d, y, s, color, size=1):
+    max_chars = (LW - 8) // (6 * size)
+    s = s if len(s) <= max_chars else s[:max_chars - 1] + "."
+    text(d, (LW - text_width(s, size)) // 2, y, s, color, size)
+
+
+def battery(d, x, y, left, color):
+    """95x14 outline with a tip; 10 power blocks inside, one per 10%."""
+    w, h = 95, 14
+    d.rectangle([x, y, x + w - 1, y + h - 1], outline=FG)
+    d.rectangle([x + w, y + 4, x + w + 2, y + h - 5], fill=FG)
+    lit = round(left / 10)
+    for i in range(10):
+        bx = x + 3 + i * 9
+        d.rectangle([bx, y + 3, bx + 7, y + h - 4], fill=color if i < lit else EMPTY)
+
+
+def short_label(label):
+    low = label.lower()
+    if low.startswith("5-hour"):
+        return "5-HOUR"
+    if low.startswith("weekly"):
+        scope = label[label.find("(") + 1:label.find(")")] if "(" in label else ""
+        return "WEEKLY" if not scope or scope.lower() == "all models" else f"WEEKLY {scope}"[:12]
+    return label[:12]
 
 
 def render(usage, index):
-    img = Image.new("RGB", (W, H), BG)
+    """Draw one service at 120x140 and scale it up with hard pixel edges."""
+    img = Image.new("RGB", (LW, LH), BG)
     d = ImageDraw.Draw(img)
     services = usage.services
 
     if not services:
-        d.text((W // 2, 120), "Usage Battery", font=F_TITLE, fill=FG, anchor="mm")
-        d.text((W // 2, 152), usage.error or "No services set up yet", font=F_SMALL, fill=MUTED, anchor="mm")
-        return img, None
+        centered(d, 52, "USAGE", FG, 2)
+        centered(d, 70, "BATTERY", FG, 2)
+        centered(d, 96, usage.error or "NO SERVICES YET", MUTED)
+        return img.resize((W, H), Image.NEAREST), None
 
-    svc = services[index % len(services)]
-    # Header: service name and page dots
     n = len(services)
-    room = W - 18 - (n * 14 + 20)  # leave space for the page dots
-    d.text((18, 22), svc["name"], font=fit(d, svc["name"], room, (21, 19, 17, 15), bold=True), fill=FG, anchor="lm")
-    for i in range(n):
-        cx = W - 22 - (n - 1 - i) * 14
-        d.ellipse([cx - 4, 18, cx + 4, 26], fill=FG if i == index % n else TRACK)
+    svc = services[index % n]
+    title = svc["name"]
+    big = text_width(title, 2) <= LW - 16 - n * 5
+    text(d, 8, 6 if big else 10, title, FG, 2 if big else 1)
+    for i in range(n):  # page markers
+        px = LW - 8 - (n - i) * 5 + 1
+        d.rectangle([px, 10, px + 2, 12], fill=FG if i == index % n else EMPTY)
+    for x in range(8, LW - 8, 2):
+        d.point((x, 24), fill=EMPTY)
 
-    # Meters
     meters = svc["meters"][:3]
-    top, slot = 52, (196 if len(meters) <= 2 else 210) // max(1, len(meters))
-    worst = None
+    slot = 47 if len(meters) <= 2 else 33
+    order, worst = ["critical", "low", "ok"], None
     for i, m in enumerate(meters):
-        y = top + i * slot
+        y = 30 + i * slot
         color = LEVEL_COLORS.get(m["level"], FG)
+        text(d, 8, y + 4, short_label(m["label"]), FG)
         pct = f"{m['left']}%"
-        room = W - 36 - d.textlength(pct, font=F_PCT) - 8
-        d.text((18, y + 10), m["label"], font=fit(d, m["label"], room, (15, 14, 13, 12)), fill=FG, anchor="lm")
-        d.text((W - 18, y + 10), pct, font=F_PCT, fill=color, anchor="rm")
-        draw_battery(d, 18, y + 28, W - 46, 26, m["left"], color)
-        if m.get("resets"):
-            d.text((18, y + 70), f"Recharges {m['resets']}", font=F_SMALL, fill=MUTED, anchor="lm")
-        order = ["critical", "low", "ok"]
+        text(d, LW - 8 - text_width(pct, 2) + 1, y, pct, color, 2)
+        battery(d, 8, y + 17, m["left"], color)
+        if m.get("resets") and len(meters) <= 2:
+            text(d, 8, y + 35, "RESETS " + m["resets"].replace(":00", ""), MUTED)
         if worst is None or order.index(m["level"]) < order.index(worst):
             worst = m["level"]
 
-    # Footer: freshness
     if usage.error:
-        since = time.strftime("%-I:%M %p", time.localtime(usage.last_ok)) if usage.last_ok else "never"
-        footer, color = f"{usage.error} · last {since}", LEVEL_COLORS["low"]
+        since = time.strftime("%-I:%M %p", time.localtime(usage.last_ok)) if usage.last_ok else ""
+        label = "WRONG PASSCODE" if "passcode" in usage.error.lower() else f"OFFLINE {since}".strip()
+        centered(d, LH - 11, label, LEVEL_COLORS["low"])
     else:
-        footer, color = f"Updated {usage.data.get('updated_text', '')}", MUTED
-    d.text((W // 2, H - 22), footer, font=F_SMALL, fill=color, anchor="mm")
-    return img, (None if usage.error else worst)
+        centered(d, LH - 11, f"UPDATED {usage.data.get('updated_text', '')}", MUTED)
+    return img.resize((W, H), Image.NEAREST), (None if usage.error else worst)
 
 
 def rgb565(img):

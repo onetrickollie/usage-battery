@@ -2,6 +2,7 @@
 
 Shows your usage batteries on a Raspberry Pi with a [PiSugar Whisplay HAT](https://www.pisugar.com/products/whisplay-hat-for-pi-zero-2w-audio-display): a 1.69" screen, one button and an RGB LED.
 
+- **Pixel-art screens.** A built-in 5×7 pixel font and batteries made of 10 power blocks (one per 10%). No extra fonts needed.
 - **One service per screen.** Press the button to cycle through them: Claude → ChatGPT / Codex → Claude. Services with no data are skipped.
 - **The LED** glows dim green, yellow or red for the lowest battery on the current screen.
 - **Refreshes every minute** from the hub on your computer. If the hub is unreachable, it keeps the last numbers and shows "Computer offline · last 6:42 PM".
