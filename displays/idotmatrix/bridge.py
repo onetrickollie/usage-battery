@@ -93,24 +93,46 @@ def encode(frames, seconds):
 
 
 async def send(address, kind, data):
+    """Send one picture over a connection kept open between updates.
+
+    Every new Bluetooth connection makes the panel flash its own "connected" screen, so we
+    connect once and reuse the link; only a dropped link (panel unplugged, out of range)
+    causes a reconnect.
+    """
     from idotmatrix import ConnectionManager, Gif, Image as IdmImage
     path = os.path.join(os.path.dirname(CONFIG), f"idotmatrix-frame.{kind}")
     with open(path, "wb") as f:
         f.write(data)
     conn = ConnectionManager()
-    # The library keeps one Bluetooth client forever; after the panel is unplugged that
-    # client goes stale and every retry fails. Start from a fresh one each time.
-    conn.client = None
-    await asyncio.wait_for(conn.connectByAddress(address), timeout=20)
+    fresh = not (conn.client and conn.client.is_connected)
+    if fresh:
+        # The library keeps one client forever and it goes stale after a drop: start a new one.
+        conn.client = None
+        await asyncio.wait_for(conn.connectByAddress(address), timeout=20)
+        log("connected to the panel")
     try:
         if kind == "png":
-            ok = await IdmImage().setMode(1) is not False and await IdmImage().uploadUnprocessed(path) is not False
+            if fresh:
+                await IdmImage().setMode(1)
+            ok = await IdmImage().uploadUnprocessed(path) is not False
         else:
             ok = await Gif().uploadUnprocessed(path) is not False
-        await asyncio.sleep(1)  # let the last packets go out
-    finally:
-        await conn.disconnect()
+    except Exception:
+        await disconnect()
+        raise
+    if not ok:
+        await disconnect()
     return ok
+
+
+async def disconnect():
+    from idotmatrix import ConnectionManager
+    conn = ConnectionManager()
+    try:
+        await conn.disconnect()
+    except Exception:
+        pass
+    conn.client = None
 
 
 async def run(args):
