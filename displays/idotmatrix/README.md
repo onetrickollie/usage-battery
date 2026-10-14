@@ -14,7 +14,7 @@ The panel has no Wi-Fi, so it can't fetch numbers itself. A small program on the
 hub (Mac) ──► bridge.py (Mac) ──Bluetooth──► LED panel
 ```
 
-The panel's own button isn't reported over Bluetooth, so it can't switch screens; the animation does that instead. A long press turns the panel off.
+The panel's own button isn't reported over Bluetooth, so it can't switch screens; the animation does that instead. A short press does nothing visible while it shows the batteries; a long press turns the panel off.
 
 ## Install (macOS)
 
@@ -39,7 +39,7 @@ Options for `bridge.py`: `--seconds 15` (time per screen), `--address <id>` (a s
 
 ## Troubleshooting
 
-- **Panel shows something else:** you pressed its button or used the phone app. The bridge puts the batteries back within 10 minutes, or restart it to do it now.
+- **Panel shows something else:** the phone app took over, or the panel was turned off and on. The bridge puts the batteries back within 10 minutes, or restart it to do it now.
 - **"couldn't reach the panel" in the log:** it's off, out of range, or connected to the phone app. It keeps retrying.
 - **"No iDotMatrix panel found":** turn the panel on, bring it closer, close the phone app, and restart.
 
