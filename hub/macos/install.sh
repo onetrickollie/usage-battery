@@ -83,6 +83,10 @@ $( [ -n "$LAN_ARG" ] && echo "    <string>$LAN_ARG</string>" )
 EOF
 
 launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+for _ in 1 2 3 4 5 6 7 8 9 10; do  # wait for the old copy to stop before starting the new one
+  launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 || break
+  sleep 1
+done
 launchctl bootstrap "$DOMAIN" "$PLIST"
 
 for _ in 1 2 3 4 5 6 7 8 9 10; do
