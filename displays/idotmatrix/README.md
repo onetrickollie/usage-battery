@@ -12,7 +12,9 @@ Shows your usage batteries on a 32×32 iDotMatrix LED pixel panel (sold under se
 
 ## How it works
 
-The panel has no Wi-Fi, so it can't fetch numbers itself. A small program on the **same computer as the hub** reads `/api/display` every minute, draws a 32×32 picture, and sends it to the panel over Bluetooth (about a second). It sends whenever anything on the picture changes (the update time does, each minute), and at least every 10 minutes in case the panel was switched to another mode.
+The panel has no Wi-Fi, so it can't fetch numbers itself. A small program on the **same computer as the hub** reads `/api/display` every minute, draws a 32×32 picture, and sends it to the panel over Bluetooth. It sends whenever anything on the picture changes (the update time does, each minute), and at least every 10 minutes in case the panel was switched to another mode.
+
+It **keeps the Bluetooth connection open** between updates. The panel briefly shows its own "connected" screen whenever a new connection starts, so staying connected means you only see that once (after login, or after the panel loses power), not every minute. While connected, the iDotMatrix phone app can't connect; use `--pause` to free the panel.
 
 ```
 hub (Mac) ──► bridge.py (Mac) ──Bluetooth──► LED panel
@@ -33,6 +35,7 @@ This sets up the Python packages it needs (`idotmatrix`, `bleak`, `pillow`) in `
 | To... | Run |
 |---|---|
 | Check it's running | `./displays/idotmatrix/install.sh --status` |
+| Use the iDotMatrix phone app | `./displays/idotmatrix/install.sh --pause`, then `--resume` when done |
 | Watch its log | `tail -f ~/Library/Logs/usage-battery-idotmatrix.log` |
 | Restart it | `./displays/idotmatrix/install.sh` |
 | Remove it | `./displays/idotmatrix/install.sh --uninstall` |
@@ -44,7 +47,7 @@ Options for `bridge.py`: `--all` (cycle every service), `--seconds 15` (time per
 ## Troubleshooting
 
 - **Panel shows something else:** the mode button was pressed, the phone app took over, or the panel was turned off and on. The bridge puts the batteries back within 10 minutes, or restart it to do it now.
-- **"couldn't reach the panel" in the log:** it's off, out of range, or connected to the phone app (a connected panel stops announcing itself over Bluetooth, so close the app fully). It keeps retrying and recovers by itself, including after the panel is unplugged and plugged back in.
+- **"couldn't reach the panel" in the log:** it's off, out of range, or connected to the phone app (a connected panel stops announcing itself over Bluetooth, so close the app fully, or `--pause` the program before using the app). It keeps retrying and recovers by itself, including after the panel is unplugged and plugged back in.
 - **"No iDotMatrix panel found":** turn the panel on, bring it closer, close the phone app, and restart.
 
 ## Notes

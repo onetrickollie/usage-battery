@@ -4,6 +4,8 @@
 #
 #   ./install.sh               # set up and start
 #   ./install.sh --status      # is it running? where is the log?
+#   ./install.sh --pause       # let go of the panel (e.g. to use the iDotMatrix phone app)
+#   ./install.sh --resume      # take it back
 #   ./install.sh --uninstall
 set -euo pipefail
 
@@ -20,12 +22,21 @@ case "${1:-}" in
     rm -f "$PLIST"
     echo "Stopped and removed the panel bridge."
     exit 0 ;;
+  --pause)
+    launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+    echo "Paused: the panel is free for the phone app. Run ./install.sh --resume (or log in again) to take it back."
+    exit 0 ;;
+  --resume)
+    [ -f "$PLIST" ] || { echo "Not installed yet: run ./install.sh" >&2; exit 1; }
+    launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null || true
+    echo "Resumed."
+    exit 0 ;;
   --status)
     launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 && echo "Running in the background ($LABEL)." || echo "Not running."
     echo "Log: $LOG"; tail -5 "$LOG" 2>/dev/null || true
     exit 0 ;;
   "") ;;
-  -h|--help) sed -n 2,8p "$0"; exit 0 ;;
+  -h|--help) sed -n 2,10p "$0"; exit 0 ;;
   *) echo "Unknown option: $1" >&2; exit 1 ;;
 esac
 
