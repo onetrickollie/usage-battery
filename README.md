@@ -18,6 +18,7 @@ hub/                    runs on your computer; gathers your usage (always needed
   statusline.py           optional Claude Code status line (fallback data source)
 displays/               pick the screen you have
   whisplay/               Raspberry Pi + PiSugar Whisplay HAT (1.69" screen, button, LED)
+  idotmatrix/             iDotMatrix 32x32 LED pixel panel over Bluetooth
 docs/                   diagrams
 ```
 
@@ -55,6 +56,7 @@ It prints the address and a passcode for your display. Other devices must send t
 |---|---|---|
 | **Browser** | Full page with every battery, on the computer running the hub | Nothing extra: open http://127.0.0.1:8765 |
 | **Whisplay HAT** on a Raspberry Pi | 1.69" screen, button to cycle services, LED shows battery level, starts at boot | [displays/whisplay](displays/whisplay/README.md) |
+| **iDotMatrix LED panel** (32×32, e.g. Reylax) | Glowing pixel batteries that cycle Claude and Codex, over Bluetooth from the hub's Mac | [displays/idotmatrix](displays/idotmatrix/README.md) |
 
 More displays (such as e-ink panels) can be added as new folders under `displays/`. Each one only reads `/api/display` from the hub; [displays/README.md](displays/README.md) explains how to build one.
 
