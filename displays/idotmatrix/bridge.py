@@ -98,7 +98,10 @@ async def send(address, kind, data):
     with open(path, "wb") as f:
         f.write(data)
     conn = ConnectionManager()
-    await conn.connectByAddress(address)
+    # The library keeps one Bluetooth client forever; after the panel is unplugged that
+    # client goes stale and every retry fails. Start from a fresh one each time.
+    conn.client = None
+    await asyncio.wait_for(conn.connectByAddress(address), timeout=20)
     try:
         if kind == "png":
             ok = await IdmImage().setMode(1) is not False and await IdmImage().uploadUnprocessed(path) is not False
@@ -140,7 +143,9 @@ async def run(args):
                 except Exception as e:
                     failures += 1
                     if failures in (1, 5) or failures % 30 == 0:
-                        log(f"couldn't reach the panel ({e}); will keep trying")
+                        log(f"couldn't reach the panel ({e.__class__.__name__}: {e}); will keep trying")
+                    if failures == 1:
+                        last_sig = None  # resend as soon as it's back, even if nothing changed
         if args.once:
             return
         await asyncio.sleep(CHECK_SECONDS)
