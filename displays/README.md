@@ -13,6 +13,7 @@ The hub (`hub/battery.py`) gathers your usage and serves it. A display only show
 |---|---|---|
 | (built into the hub) | Browser, at http://127.0.0.1:8765 | `/api/usage` from the same computer |
 | [whisplay](whisplay/README.md) | Raspberry Pi + PiSugar Whisplay HAT | `/api/display` over Wi-Fi, every 60 s |
+| [idotmatrix](idotmatrix/README.md) | iDotMatrix 32×32 LED panel (e.g. Reylax), Bluetooth | A bridge on the hub's computer reads `/api/display` and sends the panel a looping picture |
 
 ## Adding a display
 
