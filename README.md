@@ -6,6 +6,7 @@ A battery meter for your AI usage limits. Instead of digging through settings pa
 - **ChatGPT / Codex**: your 5-hour and weekly Codex limits.
 - A pixel-art look: each battery is 10 power blocks, one per 10% left, and they're green above 50%, yellow down to 20%, and red below that.
 - It refreshes every minute on its own, and picks up usage from any device: Claude Code, the desktop app, claude.ai and your phone.
+- **Works with several displays:** your browser, a Raspberry Pi with a Whisplay HAT, and now **iDotMatrix 32×32 LED pixel panels** (sold under brands like Reylax) over Bluetooth. See [Pick a display](#2-pick-a-display).
 
 ![How Usage Battery works: usage from your Claude account and Codex goes to battery.py on your computer, which refreshes every 60 seconds and feeds the browser page and a desk display](docs/workflow.svg)
 
@@ -92,7 +93,7 @@ More displays (such as e-ink panels) can be added as new folders under `displays
 
 ## Roadmap
 
-1. **More displays**, such as an e-ink panel (for example an ESP32 board like the Adafruit MagTag or LilyGo T5).
+1. **More displays**, starting with the SenseCAP Indicator D1 (a 4" color desk screen), then e-ink panels.
 2. **Cloud relay**, so displays work away from home Wi-Fi and keep the last numbers while the computer is off.
 3. **Cross-platform hub.** Background services for Windows and Linux, and reliable support for both alongside macOS.
 4. **Support for more people.** Cover users who don't use Claude Code once Anthropic offers an official way to read usage. There's an open request: [anthropics/claude-code#13585](https://github.com/anthropics/claude-code/issues/13585).
