@@ -1,10 +1,10 @@
 """Draw one service as a 32x32 pixel picture for an iDotMatrix LED panel.
 
 Layout (rows from the top):
-   1-5   service icon + name, freshness pixel in the top-right corner
-   8-12  label (5H) and percent left
+   1-5   service icon, and the time the numbers were last updated (green / yellow / red = fresh / old / hub offline)
+   8-12  5-hour: percent left, and when it resets (a time, e.g. 8:30)
   14-18  a 10-block battery
-  21-25  label (WK) and percent left
+  21-25  weekly: percent left, and when it resets (a day, e.g. SUN)
   27-31  a 10-block battery
 """
 from PIL import Image
@@ -23,11 +23,14 @@ GLYPHS = {
     "3": "111 001 111 001 111", "4": "101 101 111 001 001", "5": "111 100 111 001 111",
     "6": "111 100 111 101 111", "7": "111 001 010 010 010", "8": "111 101 111 101 111",
     "9": "111 101 111 001 111", "%": "101 001 010 100 101", " ": "000 000 000 000 000",
+    ":": "0 1 0 1 0",
     "A": "010 101 111 101 101", "C": "011 100 100 100 011", "D": "110 101 101 101 110",
     "E": "111 100 110 100 111", "H": "101 101 111 101 101", "K": "101 110 100 110 101",
     "L": "100 100 100 100 111", "O": "010 101 101 101 010", "P": "110 101 110 100 100",
     "T": "111 010 010 010 010", "U": "101 101 101 101 111", "W": "101 101 111 111 101",
     "X": "101 101 010 101 101", "?": "111 001 010 000 010",
+    "F": "111 100 110 100 100", "I": "111 010 010 010 111", "M": "101 111 111 101 101",
+    "N": "111 101 101 101 101", "R": "110 101 110 101 101", "S": "011 100 010 001 110",
 }
 
 # 5x5 service icons and their colors.
@@ -40,15 +43,24 @@ NAMES = {"Claude": "CLAUDE", "ChatGPT / Codex": "CODEX"}
 
 def text(px, x, y, s, color):
     for ch in s.upper():
-        for r, row in enumerate(GLYPHS.get(ch, GLYPHS["?"]).split()):
+        rows = GLYPHS.get(ch, GLYPHS["?"]).split()
+        for r, row in enumerate(rows):
             for c, bit in enumerate(row):
                 if bit == "1" and 0 <= x + c < SIZE:
                     px[x + c, y + r] = color
-        x += 4
+        x += len(rows[0]) + 1
 
 
 def text_width(s):
-    return len(s) * 4 - 1
+    return sum(len(GLYPHS.get(ch, GLYPHS["?"]).split()[0]) + 1 for ch in s.upper()) - 1
+
+
+def reset_word(resets):
+    """'8:30 PM' -> '8:30', 'Sun 4:00 AM' -> 'SUN', '' -> ''."""
+    if not resets:
+        return ""
+    first = resets.split()[0]
+    return first.upper()[:3] if first[:1].isalpha() else first
 
 
 def shade(color, factor):
@@ -80,8 +92,9 @@ def short(label):
     return "5H" if low.startswith("5-hour") else "WK" if low.startswith("weekly") else label[:2].upper()
 
 
-def render(service, freshness="fresh"):
-    """service: one entry of /api/display's `services`; freshness: fresh | stale | offline."""
+def render(service, freshness="fresh", updated=""):
+    """service: one entry of /api/display's `services`.
+    freshness: fresh | stale | offline (colors the updated time). updated: e.g. '7:05'."""
     img = Image.new("RGB", (SIZE, SIZE), OFF)
     px = img.load()
 
@@ -90,16 +103,16 @@ def render(service, freshness="fresh"):
         for c, bit in enumerate(row):
             if bit == "1":
                 px[c, 1 + r] = icon_color
-    name = NAMES.get(service["name"], service["name"][:5].upper())
-    text(px, 7, 1, name, shade(icon_color, 1.1))
-    px[31, 1] = px[31, 2] = FRESH[freshness]  # freshness light
+    if updated:
+        text(px, SIZE - text_width(updated), 1, updated, FRESH[freshness])
 
     for i, m in enumerate(service["meters"][:2]):
         y = 8 + i * 13
         color = LEVEL.get(m["level"], LABEL)
-        text(px, 0, y, short(m["label"]), LABEL)
-        pct = f"{m['left']}%"
-        text(px, SIZE - text_width(pct), y, pct, color)
+        text(px, 0, y, f"{m['left']}%", color)
+        word = reset_word(m.get("resets", ""))
+        if word and text_width(f"{m['left']}%") + 3 + text_width(word) <= SIZE:
+            text(px, SIZE - text_width(word), y, word, LABEL)
         battery(px, y + 6, m["left"], color)
     return img
 

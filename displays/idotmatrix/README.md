@@ -2,19 +2,23 @@
 
 Shows your usage batteries on a 32×32 iDotMatrix LED pixel panel (sold under several brands, including Reylax), over Bluetooth.
 
-- **Two screens that loop by themselves:** CLAUDE, then CODEX, 10 seconds each. Each shows the 5-hour (`5H`) and weekly (`WK`) percent left, with a 10-block battery in green, yellow or red.
-- **Freshness light:** the top-right pixel is green when the numbers are current, yellow when they're old (Codex until you run `codex`), red when the hub isn't answering.
-- **Light on Bluetooth:** the bridge only sends when the numbers change, plus a refresh every 10 minutes in case the panel was switched to another mode.
+- **Claude at a glance**, top to bottom:
+  - the Claude icon, and the **time the numbers are from** (e.g. `7:13`), colored green when current, yellow when old, red when the hub isn't answering;
+  - the **5-hour** limit: percent left, **when it resets** (a time, e.g. `9:10`), and a 10-block battery;
+  - the **weekly** limit: percent left, **the day it resets** (e.g. `SUN`), and a 10-block battery.
+- Batteries are green, yellow or red, like every other display.
+- **When the Mac sleeps,** the panel keeps the last picture; the update time tells you how old it is.
+- `--all` shows every service instead (Claude, then Codex, 10 seconds each, looping on the panel by itself).
 
 ## How it works
 
-The panel has no Wi-Fi, so it can't fetch numbers itself. A small program on the **same computer as the hub** reads `/api/display` every minute, draws each service as a 32×32 picture, and sends the panel a looping animation over Bluetooth.
+The panel has no Wi-Fi, so it can't fetch numbers itself. A small program on the **same computer as the hub** reads `/api/display` every minute, draws a 32×32 picture, and sends it to the panel over Bluetooth (about a second). It sends whenever anything on the picture changes (the update time does, each minute), and at least every 10 minutes in case the panel was switched to another mode.
 
 ```
 hub (Mac) ──► bridge.py (Mac) ──Bluetooth──► LED panel
 ```
 
-The panel's own button isn't reported over Bluetooth, so it can't switch screens; the animation does that instead. A short press does nothing visible while it shows the batteries; a long press turns the panel off.
+The panel's own button isn't reported over Bluetooth, so the program can't use it. A short press does nothing visible while it shows the batteries; a long press turns the panel off.
 
 ## Install (macOS)
 
@@ -35,7 +39,7 @@ This sets up the Python packages it needs (`idotmatrix`, `bleak`, `pillow`) in `
 | Try it once without the service | `displays/idotmatrix/.venv/bin/python displays/idotmatrix/bridge.py --once` |
 | Use a different panel | delete `~/.usage-battery/idotmatrix.json`, then restart |
 
-Options for `bridge.py`: `--seconds 15` (time per screen), `--address <id>` (a specific panel), `--hub URL --key CODE` (a hub on another computer).
+Options for `bridge.py`: `--all` (cycle every service), `--seconds 15` (time per screen with `--all`), `--address <id>` (a specific panel), `--hub URL --key CODE` (a hub on another computer).
 
 ## Troubleshooting
 

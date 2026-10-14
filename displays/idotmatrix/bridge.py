@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Usage Battery for an iDotMatrix 32x32 LED panel (Bluetooth).
 
-Runs on the same computer as the hub. Every minute it reads /api/display, draws each
-service as a 32x32 picture, and sends the panel a looping animation (Claude, then Codex,
-...) so the panel cycles screens by itself. It only sends when something changed, plus a
-refresh every 10 minutes in case the panel was switched to another mode.
+Runs on the same computer as the hub. Every minute it reads /api/display, draws Claude's
+batteries as a 32x32 picture (with the time the numbers are from and when each limit
+resets), and sends it to the panel when anything changed, plus a refresh every 10 minutes
+in case the panel was switched to another mode. With --all, it sends a looping animation
+of every service instead, so the panel cycles them by itself.
 
   python bridge.py                 # find the panel (name starts with IDM-) and run
   python bridge.py --once          # send one update and exit
+  python bridge.py --all           # cycle Claude, Codex, ... instead of Claude only
   python bridge.py --address <id>  # use a specific panel
 """
 import argparse, asyncio, hashlib, io, json, os, sys, time, urllib.request
@@ -51,9 +53,10 @@ async def find_panel():
 class Hub:
     """Reads /api/display and remembers the last good answer."""
 
-    def __init__(self, url, key):
-        self.url, self.key = url.rstrip("/") + "/api/display", key
+    def __init__(self, url, key, only=None):
+        self.url, self.key, self.only = url.rstrip("/") + "/api/display", key, only
         self.data, self.ok = None, False
+        self.as_of = {}  # service name -> time.time() its numbers are from
 
     def fetch(self):
         req = urllib.request.Request(self.url, headers={"X-Battery-Key": self.key} if self.key else {})
@@ -66,11 +69,15 @@ class Hub:
             self.ok = False
 
     def frames(self):
-        services = (self.data or {}).get("services") or []
+        services = [s for s in (self.data or {}).get("services") or [] if not self.only or s["name"] == self.only]
         out = []
         for svc in services:
-            freshness = "offline" if not self.ok else "stale" if (svc.get("age_seconds") or 0) > 180 else "fresh"
-            out.append(render(svc, freshness))
+            if self.ok and svc.get("age_seconds") is not None:
+                self.as_of[svc["name"]] = time.time() - svc["age_seconds"]
+            as_of = self.as_of.get(svc["name"])
+            freshness = "offline" if not self.ok else "stale" if as_of and time.time() - as_of > 180 else "fresh"
+            updated = time.strftime("%-I:%M", time.localtime(as_of)) if as_of else ""
+            out.append(render(svc, freshness, updated))
         return out
 
 
@@ -113,9 +120,9 @@ async def run(args):
         cfg["address"] = address
         save_config(cfg)
 
-    hub = Hub(args.hub, args.key)
+    hub = Hub(args.hub, args.key, None if args.all else "Claude")
     last_sig, last_sent, failures = None, 0.0, 0
-    log(f"running: hub {args.hub}, panel {address}, {args.seconds:g}s per screen")
+    log(f"running: hub {args.hub}, panel {address}, " + (f"all services, {args.seconds:g}s each" if args.all else "Claude only"))
     while True:
         hub.fetch()
         frames = hub.frames()
@@ -144,7 +151,8 @@ def main():
     p.add_argument("--hub", default=os.environ.get("BATTERY_HUB", "http://127.0.0.1:8765"))
     p.add_argument("--key", default=os.environ.get("BATTERY_KEY", ""), help="passcode, if the hub is on another computer")
     p.add_argument("--address", help="panel's Bluetooth id (found automatically the first time)")
-    p.add_argument("--seconds", type=float, default=10, help="seconds each service stays on screen")
+    p.add_argument("--all", action="store_true", help="cycle every service instead of showing Claude only")
+    p.add_argument("--seconds", type=float, default=10, help="with --all, seconds each service stays on screen")
     p.add_argument("--once", action="store_true", help="send one update and exit")
     args = p.parse_args()
     try:
