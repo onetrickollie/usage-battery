@@ -112,8 +112,9 @@ async def send(address, kind, data):
         log("connected to the panel")
     try:
         if kind == "png":
-            if fresh:
-                await IdmImage().setMode(1)
+            # Re-enter picture mode every time: the panel's mode button (or the phone app) can
+            # switch it away, and a picture sent in another mode only flashes for a moment.
+            await IdmImage().setMode(1)
             ok = await IdmImage().uploadUnprocessed(path) is not False
         else:
             ok = await Gif().uploadUnprocessed(path) is not False

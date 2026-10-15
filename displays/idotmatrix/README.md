@@ -46,7 +46,7 @@ Options for `bridge.py`: `--all` (cycle every service), `--seconds 15` (time per
 
 ## Troubleshooting
 
-- **Panel shows something else:** the mode button was pressed, the phone app took over, or the panel was turned off and on. The bridge puts the batteries back within 10 minutes, or restart it to do it now.
+- **Panel shows something else:** the mode button was pressed, the phone app took over, or the panel was turned off and on. The bridge switches it back to the batteries with the next update, within a minute.
 - **"couldn't reach the panel" in the log:** it's off, out of range, or connected to the phone app (a connected panel stops announcing itself over Bluetooth, so close the app fully, or `--pause` the program before using the app). It keeps retrying and recovers by itself, including after the panel is unplugged and plugged back in.
 - **"No iDotMatrix panel found":** turn the panel on, bring it closer, close the phone app, and restart.
 
