@@ -132,13 +132,13 @@ def led_preview(img, scale=12):
 
 # --- Both services on one screen ---------------------------------------------------------
 #
-#   rows  0-4   Claude icon, 5-hour % left, weekly % left
-#   rows  6-7   Claude 5-hour battery (10 blocks)
-#   rows  9-10  Claude weekly battery
-#   rows 13-17  Codex icon, 5-hour %, weekly %
-#   rows 19-20  Codex 5-hour battery
-#   rows 22-23  Codex weekly battery
-#   rows 26-30  time the numbers are from (green / yellow / red = fresh / old / hub offline)
+#   rows  0-4   time the numbers are from, top right (green / yellow / red = fresh / old / hub offline)
+#   rows  6-10  Claude icon, 5-hour % left, weekly % left
+#   rows 12-13  Claude 5-hour battery (10 blocks)
+#   rows 15-16  Claude weekly battery
+#   rows 19-23  Codex icon, 5-hour %, weekly %
+#   rows 25-26  Codex 5-hour battery
+#   rows 28-29  Codex weekly battery
 # A service whose numbers are old (Codex until you run `codex`) is drawn dimmer.
 
 def thin_battery(px, y, left, color, dim=1.0):
@@ -176,8 +176,8 @@ def render_both(services, stale_names=(), freshness="fresh", updated=""):
     """services: up to two /api/display services (Claude first). stale_names are drawn dimmer."""
     img = Image.new("RGB", (SIZE, SIZE), OFF)
     px = img.load()
-    for i, svc in enumerate(services[:2]):
-        service_block(px, i * 13, svc, 0.45 if svc["name"] in stale_names else 1.0)
     if updated:
-        text(px, SIZE - text_width(updated), 26, updated, FRESH[freshness])
+        text(px, SIZE - text_width(updated), 0, updated, shade(FRESH[freshness], 0.8))
+    for i, svc in enumerate(services[:2]):
+        service_block(px, 6 + i * 13, svc, 0.45 if svc["name"] in stale_names else 1.0)
     return img
