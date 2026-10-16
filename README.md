@@ -3,7 +3,7 @@
 A battery meter for your AI usage limits. Instead of digging through settings pages, Usage Battery shows how much of your Claude and ChatGPT/Codex allowance is left as a set of batteries, in your browser or on a small screen on your desk. It uses data your tools already hand over, so there are no API keys to paste, no logins to share, and no numbers to type in.
 
 - **Claude**: your 5-hour session limit and weekly limit, with the time until each one recharges.
-- **ChatGPT / Codex**: your 5-hour and weekly Codex limits.
+- **ChatGPT / Codex**: your 5-hour and weekly Codex limits, checked live every minute, plus whether your account has Codex credits.
 - A pixel-art look: each battery is 10 power blocks, one per 10% left, and they're green above 50%, yellow down to 20%, and red below that.
 - It refreshes every minute on its own, and picks up usage from any device: Claude Code, the desktop app, claude.ai and your phone.
 - **Works with several displays:** your browser, a Raspberry Pi with a Whisplay HAT, and now **iDotMatrix 32×32 LED pixel panels** (sold under brands like Reylax) over Bluetooth. See [Pick a display](#2-pick-a-display).
@@ -57,7 +57,7 @@ It prints the address and a passcode for your display. Other devices must send t
 |---|---|---|
 | **Browser** | Full page with every battery, on the computer running the hub | Nothing extra: open http://127.0.0.1:8765 |
 | **Whisplay HAT** on a Raspberry Pi | 1.69" screen, button to cycle services, LED shows battery level, starts at boot | [displays/whisplay](displays/whisplay/README.md) |
-| **iDotMatrix LED panel** (32×32, e.g. Reylax) | Glowing pixel batteries that cycle Claude and Codex, over Bluetooth from the hub's Mac | [displays/idotmatrix](displays/idotmatrix/README.md) |
+| **iDotMatrix LED panel** (32×32, e.g. Reylax) | Glowing pixel batteries for Claude and Codex on one screen, with a credits coin, over Bluetooth from the hub's Mac | [displays/idotmatrix](displays/idotmatrix/README.md) |
 
 More displays (such as e-ink panels) can be added as new folders under `displays/`. Each one only reads `/api/display` from the hub; [displays/README.md](displays/README.md) explains how to build one.
 
@@ -65,7 +65,7 @@ More displays (such as e-ink panels) can be added as new folders under `displays
 
 - **Claude**: once a minute, the hub runs Claude Code's built-in `/usage` command in non-interactive mode and reads the percentages it prints. This only checks usage; it doesn't send a message to the model, so it doesn't use up your limit (each check takes about a second). Because limits belong to your account, the numbers include usage from every device.
 - **Fallback**: if the live check fails, the hub uses the last numbers `statusline.py` saved when Claude Code replied, if you've set it up (see below).
-- **Codex**: each time you run the Codex CLI, it saves your rate limits in `~/.codex/sessions`. The hub reads the newest snapshot.
+- **Codex**: once a minute, the hub asks Codex's own local app-server (`codex app-server`, the service the Codex desktop app uses) for your limits with its `account/rateLimits/read` request. Like Claude's `/usage`, it's a status check, not a model request. If that fails, the hub falls back to the snapshot Codex saves in `~/.codex/sessions` after each reply.
 - **Displays** ask the hub for `/api/display` every minute: a small JSON with percent left, recharge times and a level (`ok`, `low`, `critical`) for each battery.
 - **Time left**: the hub keeps the last few hours of readings and estimates when a limit will run out at your current pace ("empty in ~1h 40m"), shown only when that happens before the limit resets.
 - **Memory**: the last reading and recent history are saved to `~/.usage-battery/hub-state.json`, so a restarted hub shows numbers right away. Displays say how old the numbers are ("DATA 25M OLD", "OFFLINE 25M AGO") and refill a battery when its reset time passes, even while the hub is off.
@@ -88,7 +88,8 @@ More displays (such as e-ink panels) can be added as new folders under `displays
 - **The hub's computer has to be on and awake** for fresh numbers. The background service keeps a plugged-in Mac awake; if it's off or asleep, displays keep the last numbers and show how old they are.
 - **Relies on the text `/usage` prints.** If a Claude Code update changes that wording, the live check stops recognizing it and the hub falls back to the status line snapshot (or shows an error) until the parser is updated.
 - **Whole-percent precision.** Claude Code reports whole percentages, so a single short message may not move the number.
-- **Codex numbers are only as fresh as your last Codex run.** A window whose reset time has passed is shown as full.
+- **Codex needs the Codex CLI installed and signed in with ChatGPT** for live numbers; otherwise they're only as fresh as your last Codex run.
+- **No Codex credit amount.** OpenAI's Codex service reports whether you have credits, but not how many for every plan, so displays show credits as on/off.
 - **No ChatGPT web or OpenAI API usage.** ChatGPT doesn't offer outside tools a way to read your remaining usage, and OpenAI's API usage reports need an organization admin key.
 
 ## Roadmap

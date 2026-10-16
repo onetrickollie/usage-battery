@@ -100,7 +100,8 @@ class Hub:
         main = self.as_of.get(services[0]["name"])
         freshness = "offline" if not self.ok else "stale" if services[0]["name"] in stale else "fresh"
         updated = time.strftime("%-I:%M", time.localtime(main)) if main else ""
-        return [render_both(services, stale, freshness, updated)]
+        codex = next((s for s in services if "Codex" in s["name"]), {})
+        return [render_both(services, stale, freshness, updated, codex.get("credits"))]
 
 
 def encode(frames, seconds):

@@ -207,7 +207,94 @@ def load_state():
 def refresh_loop():
     while True:
         refresh_live()
+        refresh_codex_live()
         time.sleep(REFRESH_SECONDS)
+
+
+# --- Live Codex via its local app-server ---------------------------------------------------
+#
+# `codex app-server` is the service the Codex desktop app talks to. Its account/rateLimits/read
+# request returns the same 5-hour and weekly limits Codex saves in ~/.codex/sessions, but live,
+# plus whether the account has credits. It's a status read, not a model request.
+
+CODEX_LIVE = {}
+
+
+def find_codex():
+    for path in (shutil.which("codex"), os.path.join(HOME, ".local", "bin", "codex"),
+                 "/opt/homebrew/bin/codex", "/usr/local/bin/codex"):
+        if path and os.path.exists(path):
+            return path
+    return None
+
+
+def codex_rate_limits(codex, timeout=30):
+    """Ask `codex app-server` for account/rateLimits/read over JSON-RPC on stdin/stdout."""
+    import select
+    proc = subprocess.Popen([codex, "app-server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL, text=True, bufsize=1, cwd=tempfile.gettempdir())
+    try:
+        def send(msg):
+            proc.stdin.write(json.dumps(msg) + "\n")
+            proc.stdin.flush()
+
+        def wait_for(msg_id):
+            end = time.time() + timeout
+            while time.time() < end:
+                ready, _, _ = select.select([proc.stdout], [], [], 1)
+                if not ready:
+                    continue
+                line = proc.stdout.readline()
+                if not line:
+                    return None
+                try:
+                    msg = json.loads(line)
+                except ValueError:
+                    continue
+                if msg.get("id") == msg_id:
+                    return msg
+            return None
+
+        send({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+              "params": {"clientInfo": {"name": "usage-battery", "title": "Usage Battery", "version": "1"}}})
+        if not wait_for(1):
+            return None
+        send({"jsonrpc": "2.0", "method": "initialized"})
+        send({"jsonrpc": "2.0", "id": 2, "method": "account/rateLimits/read"})
+        reply = wait_for(2)
+        return (reply or {}).get("result")
+    finally:
+        proc.terminate()
+
+
+def refresh_codex_live():
+    codex = find_codex()
+    if not codex:
+        CODEX_LIVE["error"] = "Codex not found"
+        return
+    try:
+        result = codex_rate_limits(codex)
+    except OSError as e:
+        CODEX_LIVE["error"] = f"couldn't run Codex ({e.__class__.__name__})"
+        return
+    snap = (result or {}).get("rateLimits") or {}
+    meters = []
+    for slot in ("primary", "secondary"):
+        w = snap.get(slot)
+        if not w or w.get("usedPercent") is None:
+            continue
+        mins = w.get("windowDurationMins")
+        label = (f"{mins // 60}-hour window" if mins and mins < 1440 else "Weekly" if mins == 10080 else f"{slot} window")
+        resets = w.get("resetsAt")
+        meters.append({"label": label, "used": float(w["usedPercent"]),
+                       "resets_at": datetime.fromtimestamp(resets, timezone.utc).isoformat() if resets else None})
+    if meters:
+        credits = snap.get("credits") or {}
+        CODEX_LIVE.update(error=None, result={"meters": meters, "at": time.time(), "credits": {
+            "available": bool(credits.get("hasCredits") or credits.get("unlimited")),
+            "unlimited": bool(credits.get("unlimited")), "balance": credits.get("balance")}})
+    else:
+        CODEX_LIVE["error"] = "Codex didn't report limits (signed in with ChatGPT?)"
 
 
 def ago(ts):
@@ -219,6 +306,12 @@ def ago(ts):
 
 
 def codex_usage():
+    """Live numbers from Codex's app-server when fresh; otherwise the newest saved session file."""
+    live = CODEX_LIVE.get("result")
+    if live and time.time() - live["at"] < 3 * REFRESH_SECONDS:
+        return {"name": "ChatGPT / Codex", "meters": [recharged(dict(m)) for m in live["meters"]],
+                "as_of": live["at"], "credits": live["credits"],
+                "note": f"Live from Codex, checked {ago(live['at'])}"}
     files = sorted(glob.glob(os.path.join(HOME, ".codex", "sessions", "**", "*.jsonl"), recursive=True),
                    key=os.path.getmtime, reverse=True)
     if not files:
@@ -308,8 +401,11 @@ def display_payload():
                            "level": "ok" if left > 50 else "low" if left > 20 else "critical"})
         if meters:
             as_of = svc.get("as_of")
-            services.append({"name": svc["name"], "meters": meters, "note": svc.get("note", ""),
-                             "age_seconds": int(time.time() - as_of) if as_of else None})
+            entry = {"name": svc["name"], "meters": meters, "note": svc.get("note", ""),
+                     "age_seconds": int(time.time() - as_of) if as_of else None}
+            if svc.get("credits"):
+                entry["credits"] = svc["credits"]
+            services.append(entry)
     return {"updated": time.time(), "updated_text": datetime.now().strftime("%-I:%M %p"), "services": services}
 
 
