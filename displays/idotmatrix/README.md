@@ -5,8 +5,8 @@ Shows your usage batteries on a 32×32 iDotMatrix LED pixel panel (sold under se
 - **Claude and Codex on one screen**, each with its logo (Claude's orange starburst, Codex's blue knot):
   - next to the logo: **5-hour** percent left, then **weekly** percent left;
   - below: a 10-block battery for each, 5-hour first;
-  - at the bottom: the **time the numbers are from** (e.g. `11:47`), green when current, yellow when old, red when the hub isn't answering.
-- A service whose numbers are **old is drawn dimmer**. Codex only updates when you run `codex`, so it dims when you haven't used it for a few minutes.
+  - in the top-right corner: the **time the numbers are from** (e.g. `11:47`), green when current, yellow when old, red when the hub isn't answering.
+- A service whose numbers are **old is drawn dimmer**. Codex saves new numbers after each reply (from the Codex app or the `codex` command), so its half dims when you haven't used it for a few minutes. The numbers are exactly what Codex reports; if you have credits, Codex may keep working after its 5-hour window shows 0%.
 - Batteries are green, yellow or red, like every other display.
 - **When the Mac sleeps,** the panel keeps the last picture; the update time tells you how old it is.
 - Other layouts: `--claude` (Claude only, with reset times) or `--all` (each service full-screen, cycling every 10 seconds).
