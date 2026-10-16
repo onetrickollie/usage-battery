@@ -6,7 +6,9 @@ Shows your usage batteries on a 32×32 iDotMatrix LED pixel panel (sold under se
   - next to the logo: **5-hour** percent left, then **weekly** percent left;
   - below: a **battery** with a tip, holding two fills: 5-hour on top, weekly below. Fills fade red → orange → yellow → green along the battery, so a full one sweeps to green and a low one shows only red; each percentage takes the color of its fill's end;
   - in the top-right corner: the **time the numbers are from** (e.g. `11:47`), cool white when current, yellow when old, red when the hub isn't answering;
-  - in the top-left corner: a **gold coin and `CR`** when Codex says your account has credits (so Codex can keep working after its 5-hour window runs out). OpenAI doesn't report a credit amount for every plan, so this is on/off rather than a battery.
+  - in the top-left corner: a **gold coin and `CR`** when Codex says your account has credits (so Codex can keep working after its 5-hour window runs out). OpenAI doesn't report a credit amount for every plan, so this is on/off rather than a battery;
+  - a Codex limit that's used up while credits are available shows **`CR` in red** instead of `0%`.
+- **Warning blink:** when any limit has **5% or less** left (and isn't simply running on credits), its battery case turns red and its fill and number blink about twice a second.
 - A service whose numbers are **old is drawn dimmer**. Both Claude and Codex are checked live every minute, so this only happens if a check fails.
 - **When the Mac sleeps,** the panel keeps the last picture; the update time tells you how old it is.
 - Other layouts: `--claude` (Claude only, with reset times) or `--all` (each service full-screen, cycling every 10 seconds).

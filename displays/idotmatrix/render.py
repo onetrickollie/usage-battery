@@ -156,9 +156,20 @@ def fade(t):
     return GRADIENT[-1][1]
 
 
-def battery_case(px, y, lefts, dim=1.0):
-    """A 31x7 battery: case at columns 0-29, tip at 30-31; two 2-pixel fills split by a line."""
-    edge = shade(CASE, dim)
+WARN_AT = 5             # percent left at or below which a battery blinks
+ALERT = (255, 30, 20)
+
+
+def warning(m, credits=None):
+    """True when this limit is nearly empty (and not simply running on Codex credits)."""
+    on_credits = m["left"] == 0 and credits and credits.get("available")
+    return m["left"] <= WARN_AT and not on_credits
+
+
+def battery_case(px, y, lefts, dim=1.0, alert=False, hide=()):
+    """A 31x7 battery: case at columns 0-29, tip at 30-31; two 2-pixel fills split by a line.
+    alert: draw the case red. hide: fill rows (0 = 5-hour, 1 = weekly) to leave dark (blink off)."""
+    edge = ALERT if alert else shade(CASE, dim)
     for x in range(30):
         px[x, y] = px[x, y + 3] = px[x, y + 6] = edge
     for yy in range(y, y + 7):
@@ -167,7 +178,7 @@ def battery_case(px, y, lefts, dim=1.0):
         px[30, yy] = px[31, yy] = edge
     inner = 28  # columns 1-28
     for row, left in enumerate(lefts[:2]):
-        lit = round(inner * max(0, min(100, left)) / 100)
+        lit = 0 if row in hide else round(inner * max(0, min(100, left)) / 100)
         top = y + 1 + row * 3
         for i in range(inner):
             if i < lit:
@@ -178,29 +189,42 @@ def battery_case(px, y, lefts, dim=1.0):
                 px[1 + i, top] = px[1 + i, top + 1] = EMPTY
 
 
-def service_block(px, y, service, dim=1.0):
+def service_block(px, y, service, dim=1.0, blink_off=False):
     icon, icon_color = ICONS.get(service["name"], ("11111 10001 10001 10001 11111", LABEL))
     for r, row in enumerate(icon.split()):
         for c, bit in enumerate(row):
             if bit == "1":
                 px[c, y + r] = shade(icon_color, dim)
     meters = service["meters"][:2]
-    words = [f"{m['left']}%" for m in meters]
+    credits = service.get("credits")
+    on_credits = [m["left"] == 0 and bool(credits and credits.get("available")) for m in meters]
+    words = ["CR" if cr else f"{m['left']}%" for m, cr in zip(meters, on_credits)]
     if len(words) == 2 and 7 + text_width(words[0]) + 3 + text_width(words[1]) > SIZE:
         words = [w.rstrip("%") for w in words]  # e.g. 63 / 100: drop the % signs so both fit
-    color_at = lambda m: shade(fade(max(0, min(100, m["left"])) / 100), dim)  # same color as the fill's end
-    if words:
-        text(px, 7, y, words[0], color_at(meters[0]))
-    if len(words) > 1:
-        text(px, SIZE - text_width(words[1]), y, words[1], color_at(meters[1]))
-    battery_case(px, y + 5, [m["left"] for m in meters], dim)
+    warn = [warning(m, credits) for m in meters]
+    hide = [i for i, w in enumerate(warn) if w and blink_off]
+
+    def color_at(i):
+        if on_credits[i]:
+            return shade(ALERT, dim)  # CR in red: this limit is used up, running on credits
+        return shade(fade(max(0, min(100, meters[i]["left"])) / 100), dim)  # same color as the fill's end
+
+    if words and 0 not in hide:
+        text(px, 7, y, words[0], color_at(0))
+    if len(words) > 1 and 1 not in hide:
+        text(px, SIZE - text_width(words[1]), y, words[1], color_at(1))
+    battery_case(px, y + 5, [m["left"] for m in meters], dim, alert=any(warn) and not blink_off, hide=hide)
 
 
 GOLD = (255, 190, 40)
 COIN = "01110 11011 10111 11011 01110"
 
 
-def render_both(services, stale_names=(), freshness="fresh", updated="", credits=None):
+def needs_warning(services):
+    return any(warning(m, s.get("credits")) for s in services[:2] for m in s["meters"][:2])
+
+
+def render_both(services, stale_names=(), freshness="fresh", updated="", credits=None, blink_off=False):
     """services: up to two /api/display services (Claude first). stale_names are drawn dimmer.
     credits: Codex's credits info ({"available": bool, ...}) or None."""
     img = Image.new("RGB", (SIZE, SIZE), OFF)
@@ -214,5 +238,5 @@ def render_both(services, stale_names=(), freshness="fresh", updated="", credits
     if updated:
         text(px, SIZE - text_width(updated), 0, updated, FRESH[freshness])
     for i, svc in enumerate(services[:2]):
-        service_block(px, 6 + i * 14, svc, 0.45 if svc["name"] in stale_names else 1.0)
+        service_block(px, 6 + i * 14, svc, 0.45 if svc["name"] in stale_names else 1.0, blink_off)
     return img

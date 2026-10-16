@@ -16,7 +16,7 @@ import argparse, asyncio, hashlib, io, json, os, sys, time, urllib.request
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from render import render, render_both  # noqa: E402
+from render import render, render_both, needs_warning  # noqa: E402
 
 CONFIG = os.path.expanduser("~/.usage-battery/idotmatrix.json")
 CHECK_SECONDS = 60
@@ -56,6 +56,7 @@ class Hub:
     def __init__(self, url, key, mode="both"):
         self.url, self.key, self.mode = url.rstrip("/") + "/api/display", key, mode
         self.data, self.ok = None, False
+        self.frame_seconds = None  # set when the picture should animate (warning blink)
         self.as_of = {}  # service name -> time.time() its numbers are from
 
     def fetch(self):
@@ -101,7 +102,12 @@ class Hub:
         freshness = "offline" if not self.ok else "stale" if services[0]["name"] in stale else "fresh"
         updated = time.strftime("%-I:%M", time.localtime(main)) if main else ""
         codex = next((s for s in services if "Codex" in s["name"]), {})
-        return [render_both(services, stale, freshness, updated, codex.get("credits"))]
+        args = (services, stale, freshness, updated, codex.get("credits"))
+        if needs_warning(services):
+            self.frame_seconds = 0.5  # nearly empty: blink the battery (on, off, ...)
+            return [render_both(*args), render_both(*args, blink_off=True)]
+        self.frame_seconds = None
+        return [render_both(*args)]
 
 
 def encode(frames, seconds):
@@ -183,7 +189,7 @@ async def run(args):
         hub.fetch()
         frames = hub.frames()
         if frames:
-            kind, data = encode(frames, args.seconds)
+            kind, data = encode(frames, hub.frame_seconds or args.seconds)
             sig = hashlib.sha1(data).hexdigest()
             if sig != last_sig or time.time() - last_sent > RESEND_SECONDS:
                 try:
