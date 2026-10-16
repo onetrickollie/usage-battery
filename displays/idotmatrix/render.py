@@ -135,26 +135,47 @@ def led_preview(img, scale=12):
 # --- Both services on one screen ---------------------------------------------------------
 #
 #   rows  0-4   left: gold coin + CR when Codex says you have credits
-#               right: time the numbers are from (green / yellow / red = fresh / old / hub offline)
+#               right: time the numbers are from (cool white / yellow / red = fresh / old / hub offline)
 #   rows  6-10  Claude icon, 5-hour % left, weekly % left
-#   rows 12-13  Claude 5-hour battery (10 blocks)
-#   rows 15-16  Claude weekly battery
-#   rows 19-23  Codex icon, 5-hour %, weekly %
-#   rows 25-26  Codex 5-hour battery
-#   rows 28-29  Codex weekly battery
-# A service whose numbers are old (Codex until you run `codex`) is drawn dimmer.
+#   rows 11-17  Claude battery: one case with a tip, 5-hour fill on top, weekly fill below
+#   rows 20-24  Codex icon, 5-hour %, weekly %
+#   rows 25-31  Codex battery
+# Fills fade red -> orange -> yellow -> green along the battery, so a full one sweeps to green
+# and a low one shows only red. A service whose numbers are old is drawn dimmer.
 
-def thin_battery(px, y, left, color, dim=1.0):
-    """10 blocks of 2x2 pixels with 1-pixel gaps (29 px wide), brighter top row."""
-    lit = round(left / 10)
-    for i in range(10):
-        x0 = 1 + i * 3
-        for dx in range(2):
+CASE = (125, 125, 118)
+GRADIENT = [(0.0, (255, 30, 20)), (0.3, (255, 120, 0)), (0.55, (255, 205, 0)), (1.0, (40, 220, 90))]
+
+
+def fade(t):
+    """Color at position t (0 = left/empty end, 1 = right/full end) of the battery gradient."""
+    for (t0, c0), (t1, c1) in zip(GRADIENT, GRADIENT[1:]):
+        if t <= t1:
+            f = (t - t0) / (t1 - t0)
+            return tuple(int(a + (b - a) * f) for a, b in zip(c0, c1))
+    return GRADIENT[-1][1]
+
+
+def battery_case(px, y, lefts, dim=1.0):
+    """A 31x7 battery: case at columns 0-29, tip at 30-31; two 2-pixel fills split by a line."""
+    edge = shade(CASE, dim)
+    for x in range(30):
+        px[x, y] = px[x, y + 3] = px[x, y + 6] = edge
+    for yy in range(y, y + 7):
+        px[0, yy] = px[29, yy] = edge
+    for yy in (y + 2, y + 3, y + 4):
+        px[30, yy] = px[31, yy] = edge
+    inner = 28  # columns 1-28
+    for row, left in enumerate(lefts[:2]):
+        lit = round(inner * max(0, min(100, left)) / 100)
+        top = y + 1 + row * 3
+        for i in range(inner):
             if i < lit:
-                px[x0 + dx, y] = shade(color, 1.3 * dim)
-                px[x0 + dx, y + 1] = shade(color, 0.75 * dim)
+                c = fade(i / (inner - 1))
+                px[1 + i, top] = shade(c, 1.15 * dim)       # brighter top edge
+                px[1 + i, top + 1] = shade(c, 0.7 * dim)
             else:
-                px[x0 + dx, y] = px[x0 + dx, y + 1] = EMPTY
+                px[1 + i, top] = px[1 + i, top + 1] = EMPTY
 
 
 def service_block(px, y, service, dim=1.0):
@@ -167,12 +188,12 @@ def service_block(px, y, service, dim=1.0):
     words = [f"{m['left']}%" for m in meters]
     if len(words) == 2 and 7 + text_width(words[0]) + 3 + text_width(words[1]) > SIZE:
         words = [w.rstrip("%") for w in words]  # e.g. 63 / 100: drop the % signs so both fit
+    color_at = lambda m: shade(fade(max(0, min(100, m["left"])) / 100), dim)  # same color as the fill's end
     if words:
-        text(px, 7, y, words[0], shade(LEVEL.get(meters[0]["level"], LABEL), dim))
+        text(px, 7, y, words[0], color_at(meters[0]))
     if len(words) > 1:
-        text(px, SIZE - text_width(words[1]), y, words[1], shade(LEVEL.get(meters[1]["level"], LABEL), dim))
-    for i, m in enumerate(meters):
-        thin_battery(px, y + 6 + i * 3, m["left"], LEVEL.get(m["level"], LABEL), dim)
+        text(px, SIZE - text_width(words[1]), y, words[1], color_at(meters[1]))
+    battery_case(px, y + 5, [m["left"] for m in meters], dim)
 
 
 GOLD = (255, 190, 40)
@@ -193,5 +214,5 @@ def render_both(services, stale_names=(), freshness="fresh", updated="", credits
     if updated:
         text(px, SIZE - text_width(updated), 0, updated, FRESH[freshness])
     for i, svc in enumerate(services[:2]):
-        service_block(px, 6 + i * 13, svc, 0.45 if svc["name"] in stale_names else 1.0)
+        service_block(px, 6 + i * 14, svc, 0.45 if svc["name"] in stale_names else 1.0)
     return img
