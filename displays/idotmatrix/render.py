@@ -15,7 +15,9 @@ LABEL = (90, 110, 150)     # soft blue-grey for 5H / WK
 FRAME = (120, 120, 112)    # battery outline
 EMPTY = (28, 28, 38)       # unlit battery blocks
 LEVEL = {"ok": (40, 210, 90), "low": (255, 175, 0), "critical": (255, 40, 30)}
-FRESH = {"fresh": (40, 210, 90), "stale": (255, 175, 0), "offline": (255, 40, 30)}
+# Clock color: a cool white when current (so it doesn't blend with green percentages),
+# yellow when the numbers are old, red when the hub isn't answering.
+FRESH = {"fresh": (150, 165, 200), "stale": (255, 175, 0), "offline": (255, 40, 30)}
 
 # 3x5 pixel font: digits, %, and the letters service names and labels need.
 GLYPHS = {
@@ -189,7 +191,7 @@ def render_both(services, stale_names=(), freshness="fresh", updated="", credits
                     px[c, r] = GOLD
         text(px, 6, 0, "CR", shade(GOLD, 0.8))
     if updated:
-        text(px, SIZE - text_width(updated), 0, updated, shade(FRESH[freshness], 0.8))
+        text(px, SIZE - text_width(updated), 0, updated, FRESH[freshness])
     for i, svc in enumerate(services[:2]):
         service_block(px, 6 + i * 13, svc, 0.45 if svc["name"] in stale_names else 1.0)
     return img

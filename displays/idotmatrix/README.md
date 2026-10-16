@@ -5,7 +5,7 @@ Shows your usage batteries on a 32×32 iDotMatrix LED pixel panel (sold under se
 - **Claude and Codex on one screen**, each with its logo (Claude's orange starburst, Codex's blue knot):
   - next to the logo: **5-hour** percent left, then **weekly** percent left;
   - below: a 10-block battery for each, 5-hour first;
-  - in the top-right corner: the **time the numbers are from** (e.g. `11:47`), green when current, yellow when old, red when the hub isn't answering;
+  - in the top-right corner: the **time the numbers are from** (e.g. `11:47`), cool white when current, yellow when old, red when the hub isn't answering;
   - in the top-left corner: a **gold coin and `CR`** when Codex says your account has credits (so Codex can keep working after its 5-hour window runs out). OpenAI doesn't report a credit amount for every plan, so this is on/off rather than a battery.
 - A service whose numbers are **old is drawn dimmer**. Both Claude and Codex are checked live every minute, so this only happens if a check fails.
 - Batteries are green, yellow or red, like every other display.
