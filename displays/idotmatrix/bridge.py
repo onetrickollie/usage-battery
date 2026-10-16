@@ -16,7 +16,7 @@ import argparse, asyncio, hashlib, io, json, os, sys, time, urllib.request
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from render import render, render_refined  # noqa: E402
+from render import render, render_both  # noqa: E402
 
 CONFIG = os.path.expanduser("~/.usage-battery/idotmatrix.json")
 CHECK_SECONDS = 60
@@ -101,7 +101,7 @@ class Hub:
         freshness = "offline" if not self.ok else "stale" if services[0]["name"] in stale else "fresh"
         updated = time.strftime("%-I:%M", time.localtime(main)) if main else ""
         codex = next((s for s in services if "Codex" in s["name"]), {})
-        return [render_refined(services, stale, freshness, updated, codex.get("credits"))]
+        return [render_both(services, stale, freshness, updated, codex.get("credits"))]
 
 
 def encode(frames, seconds):
