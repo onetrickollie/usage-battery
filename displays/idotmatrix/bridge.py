@@ -16,7 +16,7 @@ import argparse, asyncio, hashlib, io, json, os, sys, time, urllib.request
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from render import render  # noqa: E402
+from render import render, render_both  # noqa: E402
 
 CONFIG = os.path.expanduser("~/.usage-battery/idotmatrix.json")
 CHECK_SECONDS = 60
@@ -53,8 +53,8 @@ async def find_panel():
 class Hub:
     """Reads /api/display and remembers the last good answer."""
 
-    def __init__(self, url, key, only=None):
-        self.url, self.key, self.only = url.rstrip("/") + "/api/display", key, only
+    def __init__(self, url, key, mode="both"):
+        self.url, self.key, self.mode = url.rstrip("/") + "/api/display", key, mode
         self.data, self.ok = None, False
         self.as_of = {}  # service name -> time.time() its numbers are from
 
@@ -69,7 +69,11 @@ class Hub:
             self.ok = False
 
     def frames(self):
-        services = [s for s in (self.data or {}).get("services") or [] if not self.only or s["name"] == self.only]
+        services = (self.data or {}).get("services") or []
+        if self.mode == "claude":
+            services = [s for s in services if s["name"] == "Claude"]
+        if self.mode == "both":
+            return self.both(services)
         out = []
         for svc in services:
             if self.ok and svc.get("age_seconds") is not None:
@@ -79,6 +83,24 @@ class Hub:
             updated = time.strftime("%-I:%M", time.localtime(as_of)) if as_of else ""
             out.append(render(svc, freshness, updated))
         return out
+
+    def both(self, services):
+        """Claude and Codex together on one screen; old numbers drawn dimmer."""
+        services = sorted(services, key=lambda s: s["name"] != "Claude")[:2]
+        if not services:
+            return []
+        now = time.time()
+        stale = []
+        for svc in services:
+            if self.ok and svc.get("age_seconds") is not None:
+                self.as_of[svc["name"]] = now - svc["age_seconds"]
+            as_of = self.as_of.get(svc["name"])
+            if as_of and now - as_of > 180:
+                stale.append(svc["name"])
+        main = self.as_of.get(services[0]["name"])
+        freshness = "offline" if not self.ok else "stale" if services[0]["name"] in stale else "fresh"
+        updated = time.strftime("%-I:%M", time.localtime(main)) if main else ""
+        return [render_both(services, stale, freshness, updated)]
 
 
 def encode(frames, seconds):
@@ -153,9 +175,9 @@ async def run(args):
         cfg["address"] = address
         save_config(cfg)
 
-    hub = Hub(args.hub, args.key, None if args.all else "Claude")
+    hub = Hub(args.hub, args.key, "all" if args.all else "claude" if args.claude else "both")
     last_sig, last_sent, failures = None, 0.0, 0
-    log(f"running: hub {args.hub}, panel {address}, " + (f"all services, {args.seconds:g}s each" if args.all else "Claude only"))
+    log(f"running: hub {args.hub}, panel {address}, " + (f"cycling services, {args.seconds:g}s each" if args.all else "Claude only" if args.claude else "Claude + Codex"))
     while True:
         hub.fetch()
         frames = hub.frames()
@@ -186,7 +208,8 @@ def main():
     p.add_argument("--hub", default=os.environ.get("BATTERY_HUB", "http://127.0.0.1:8765"))
     p.add_argument("--key", default=os.environ.get("BATTERY_KEY", ""), help="passcode, if the hub is on another computer")
     p.add_argument("--address", help="panel's Bluetooth id (found automatically the first time)")
-    p.add_argument("--all", action="store_true", help="cycle every service instead of showing Claude only")
+    p.add_argument("--claude", action="store_true", help="show only Claude, with reset times")
+    p.add_argument("--all", action="store_true", help="cycle every service full-screen instead of showing them together")
     p.add_argument("--seconds", type=float, default=10, help="with --all, seconds each service stays on screen")
     p.add_argument("--once", action="store_true", help="send one update and exit")
     args = p.parse_args()
