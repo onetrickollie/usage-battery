@@ -110,6 +110,9 @@ async def send(address, kind, data):
         conn.client = None
         await asyncio.wait_for(conn.connectByAddress(address), timeout=20)
         log("connected to the panel")
+        # A new connection makes the panel play its own "connected" screen; a picture sent
+        # during it gets replaced by the panel's default screen. Let it finish first.
+        await asyncio.sleep(4)
     try:
         if kind == "png":
             # Re-enter picture mode every time: the panel's mode button (or the phone app) can
@@ -123,6 +126,10 @@ async def send(address, kind, data):
         raise
     if not ok:
         await disconnect()
+    elif fresh and kind == "png":
+        await asyncio.sleep(5)  # and once more, in case the panel was still settling
+        await IdmImage().setMode(1)
+        await IdmImage().uploadUnprocessed(path)
     return ok
 
 
