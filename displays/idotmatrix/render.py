@@ -156,7 +156,7 @@ def fade(t):
     return GRADIENT[-1][1]
 
 
-WARN_AT = 5             # percent left at or below which a battery blinks
+WARN_AT = 1             # percent left at or below which a battery blinks
 ALERT = (255, 30, 20)
 
 

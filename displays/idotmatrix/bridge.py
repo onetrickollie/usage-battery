@@ -104,7 +104,7 @@ class Hub:
         codex = next((s for s in services if "Codex" in s["name"]), {})
         args = (services, stale, freshness, updated, codex.get("credits"))
         if needs_warning(services):
-            self.frame_seconds = 0.5  # nearly empty: blink the battery (on, off, ...)
+            self.frame_seconds = 1.0  # nearly empty: blink the battery slowly (on, off, ...)
             return [render_both(*args), render_both(*args, blink_off=True)]
         self.frame_seconds = None
         return [render_both(*args)]
