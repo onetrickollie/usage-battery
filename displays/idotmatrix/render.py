@@ -216,3 +216,91 @@ def render_both(services, stale_names=(), freshness="fresh", updated="", credits
     for i, svc in enumerate(services[:2]):
         service_block(px, 6 + i * 14, svc, 0.45 if svc["name"] in stale_names else 1.0)
     return img
+
+
+# --- Refined layout: numbers inside larger batteries ---------------------------------------
+#
+#   rows  0-3   small clock, top right (cool white / yellow / red = fresh / old / hub offline)
+#   rows  7-17  Claude: small logo at left, battery case with a tip; 5-hour fill on top,
+#               weekly below, each with its percent written inside the fill
+#   rows 20-30  Codex: same
+# A limit at 0% while Codex credits are available shows CR in gold instead of 0.
+
+SMALL = {  # 3x4 pixel font
+    "0": "111 101 101 111", "1": "110 010 010 111", "2": "111 001 110 111", "3": "111 011 001 111",
+    "4": "101 101 111 001", "5": "111 110 001 111", "6": "100 111 101 111", "7": "111 001 010 010",
+    "8": "111 111 101 111", "9": "111 101 111 001", ":": "0 1 0 1", "C": "111 100 100 111",
+    "R": "110 101 110 101", "?": "111 001 010 010",
+}
+LOGOS = {
+    "Claude": ("0110 1111 1111 0110", (225, 125, 90)),           # solid orange dot
+    "ChatGPT / Codex": ("0110 1001 1001 0110", (110, 170, 255)),  # blue ring
+}
+INK_DARK, INK_LIGHT = (12, 12, 16), (215, 215, 208)
+
+
+def small_width(s):
+    return sum(len(SMALL.get(ch, SMALL["?"]).split()[0]) + 1 for ch in s) - 1
+
+
+def small_text(px, x, y, s, color_for):
+    """color_for(x, y) -> color, so text can contrast with whatever it's drawn over."""
+    for ch in s:
+        rows = SMALL.get(ch, SMALL["?"]).split()
+        for r, row in enumerate(rows):
+            for c, bit in enumerate(row):
+                if bit == "1" and 0 <= x + c < SIZE:
+                    px[x + c, y + r] = color_for(x + c, y + r)
+        x += len(rows[0]) + 1
+
+
+def big_battery(px, y, meters, credits, dim=1.0):
+    """Case at columns 5-29, tip at 30-31; two 4-pixel fills with their numbers inside."""
+    x0, x1 = 5, 29
+    edge = shade(CASE, dim)
+    for x in range(x0, x1 + 1):
+        px[x, y] = px[x, y + 5] = px[x, y + 10] = edge
+    for yy in range(y, y + 11):
+        px[x0, yy] = px[x1, yy] = edge
+    for yy in range(y + 3, y + 8):
+        px[30, yy] = px[31, yy] = edge
+    inner = x1 - x0 - 1  # 23 columns
+    for row, m in enumerate(meters[:2]):
+        top = y + 1 + row * 5
+        left = max(0, min(100, m["left"]))
+        lit = round(inner * left / 100)
+        for i in range(inner):
+            for dy in range(4):
+                if i < lit:
+                    c = fade(i / (inner - 1))
+                    px[x0 + 1 + i, top + dy] = shade(c, (1.15, 1.0, 0.85, 0.7)[dy] * dim)
+                else:
+                    px[x0 + 1 + i, top + dy] = EMPTY
+        on_credits = left == 0 and credits and credits.get("available")
+        word = "CR" if on_credits else str(round(left))
+        w = small_width(word)
+        if on_credits:
+            small_text(px, x1 - 1 - w, top, word, lambda *_: shade(GOLD, dim))
+        elif lit <= inner - w - 2:
+            # room on the empty part: light digits at the right end, clear of the fill
+            small_text(px, x1 - 1 - w, top, word, lambda *_: shade(INK_LIGHT, dim))
+        else:
+            # nearly full: dark digits sitting wholly on the colored fill, ending where it ends
+            small_text(px, x0 + lit - w, top, word, lambda *_: INK_DARK)
+
+
+def render_refined(services, stale_names=(), freshness="fresh", updated="", credits=None):
+    img = Image.new("RGB", (SIZE, SIZE), OFF)
+    px = img.load()
+    if updated:
+        small_text(px, SIZE - small_width(updated), 0, updated, lambda *_: shade(FRESH[freshness], 0.85))
+    for i, svc in enumerate(services[:2]):
+        y = 7 + i * 13
+        dim = 0.45 if svc["name"] in stale_names else 1.0
+        logo, color = LOGOS.get(svc["name"], ("1111 1001 1001 1111", LABEL))
+        for r, row in enumerate(logo.split()):
+            for c, bit in enumerate(row):
+                if bit == "1":
+                    px[c, y + 3 + r] = shade(color, dim)
+        big_battery(px, y, svc["meters"], svc.get("credits") or (credits if "Codex" in svc["name"] else None), dim)
+    return img
