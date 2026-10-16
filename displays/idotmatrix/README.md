@@ -2,13 +2,14 @@
 
 Shows your usage batteries on a 32×32 iDotMatrix LED pixel panel (sold under several brands, including Reylax), over Bluetooth.
 
-- **Claude at a glance**, top to bottom:
-  - the Claude icon, and the **time the numbers are from** (e.g. `7:13`), colored green when current, yellow when old, red when the hub isn't answering;
-  - the **5-hour** limit: percent left, **when it resets** (a time, e.g. `9:10`), and a 10-block battery;
-  - the **weekly** limit: percent left, **the day it resets** (e.g. `SUN`), and a 10-block battery.
+- **Claude and Codex on one screen**, each with its logo (Claude's orange starburst, Codex's blue knot):
+  - next to the logo: **5-hour** percent left, then **weekly** percent left;
+  - below: a 10-block battery for each, 5-hour first;
+  - at the bottom: the **time the numbers are from** (e.g. `11:47`), green when current, yellow when old, red when the hub isn't answering.
+- A service whose numbers are **old is drawn dimmer**. Codex only updates when you run `codex`, so it dims when you haven't used it for a few minutes.
 - Batteries are green, yellow or red, like every other display.
 - **When the Mac sleeps,** the panel keeps the last picture; the update time tells you how old it is.
-- `--all` shows every service instead (Claude, then Codex, 10 seconds each, looping on the panel by itself).
+- Other layouts: `--claude` (Claude only, with reset times) or `--all` (each service full-screen, cycling every 10 seconds).
 
 ## How it works
 
@@ -42,7 +43,7 @@ This sets up the Python packages it needs (`idotmatrix`, `bleak`, `pillow`) in `
 | Try it once without the service | `displays/idotmatrix/.venv/bin/python displays/idotmatrix/bridge.py --once` |
 | Use a different panel | delete `~/.usage-battery/idotmatrix.json`, then restart |
 
-Options for `bridge.py`: `--all` (cycle every service), `--seconds 15` (time per screen with `--all`), `--address <id>` (a specific panel), `--hub URL --key CODE` (a hub on another computer).
+Options for `bridge.py`: `--claude` (Claude only, with reset times), `--all` (cycle each service full-screen), `--seconds 15` (time per screen with `--all`), `--address <id>` (a specific panel), `--hub URL --key CODE` (a hub on another computer).
 
 ## Troubleshooting
 

@@ -128,3 +128,56 @@ def led_preview(img, scale=12):
                 for dx in range(1, scale - 1):
                     dst[x * scale + dx, y * scale + dy] = c
     return out
+
+
+# --- Both services on one screen ---------------------------------------------------------
+#
+#   rows  0-4   Claude icon, 5-hour % left, weekly % left
+#   rows  6-7   Claude 5-hour battery (10 blocks)
+#   rows  9-10  Claude weekly battery
+#   rows 13-17  Codex icon, 5-hour %, weekly %
+#   rows 19-20  Codex 5-hour battery
+#   rows 22-23  Codex weekly battery
+#   rows 26-30  time the numbers are from (green / yellow / red = fresh / old / hub offline)
+# A service whose numbers are old (Codex until you run `codex`) is drawn dimmer.
+
+def thin_battery(px, y, left, color, dim=1.0):
+    """10 blocks of 2x2 pixels with 1-pixel gaps (29 px wide), brighter top row."""
+    lit = round(left / 10)
+    for i in range(10):
+        x0 = 1 + i * 3
+        for dx in range(2):
+            if i < lit:
+                px[x0 + dx, y] = shade(color, 1.3 * dim)
+                px[x0 + dx, y + 1] = shade(color, 0.75 * dim)
+            else:
+                px[x0 + dx, y] = px[x0 + dx, y + 1] = EMPTY
+
+
+def service_block(px, y, service, dim=1.0):
+    icon, icon_color = ICONS.get(service["name"], ("11111 10001 10001 10001 11111", LABEL))
+    for r, row in enumerate(icon.split()):
+        for c, bit in enumerate(row):
+            if bit == "1":
+                px[c, y + r] = shade(icon_color, dim)
+    meters = service["meters"][:2]
+    words = [f"{m['left']}%" for m in meters]
+    if len(words) == 2 and 7 + text_width(words[0]) + 3 + text_width(words[1]) > SIZE:
+        words = [w.rstrip("%") for w in words]  # e.g. 63 / 100: drop the % signs so both fit
+    if words:
+        text(px, 7, y, words[0], shade(LEVEL.get(meters[0]["level"], LABEL), dim))
+    if len(words) > 1:
+        text(px, SIZE - text_width(words[1]), y, words[1], shade(LEVEL.get(meters[1]["level"], LABEL), dim))
+    for i, m in enumerate(meters):
+        thin_battery(px, y + 6 + i * 3, m["left"], LEVEL.get(m["level"], LABEL), dim)
+
+
+def render_both(services, stale_names=(), freshness="fresh", updated=""):
+    """services: up to two /api/display services (Claude first). stale_names are drawn dimmer."""
+    img = Image.new("RGB", (SIZE, SIZE), OFF)
+    px = img.load()
+    for i, svc in enumerate(services[:2]):
+        service_block(px, i * 13, svc, 0.45 if svc["name"] in stale_names else 1.0)
+    if updated:
+        text(px, SIZE - text_width(updated), 26, updated, FRESH[freshness])
+    return img
