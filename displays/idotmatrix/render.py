@@ -132,7 +132,8 @@ def led_preview(img, scale=12):
 
 # --- Both services on one screen ---------------------------------------------------------
 #
-#   rows  0-4   time the numbers are from, top right (green / yellow / red = fresh / old / hub offline)
+#   rows  0-4   left: gold coin + CR when Codex says you have credits
+#               right: time the numbers are from (green / yellow / red = fresh / old / hub offline)
 #   rows  6-10  Claude icon, 5-hour % left, weekly % left
 #   rows 12-13  Claude 5-hour battery (10 blocks)
 #   rows 15-16  Claude weekly battery
@@ -172,10 +173,21 @@ def service_block(px, y, service, dim=1.0):
         thin_battery(px, y + 6 + i * 3, m["left"], LEVEL.get(m["level"], LABEL), dim)
 
 
-def render_both(services, stale_names=(), freshness="fresh", updated=""):
-    """services: up to two /api/display services (Claude first). stale_names are drawn dimmer."""
+GOLD = (255, 190, 40)
+COIN = "01110 11011 10111 11011 01110"
+
+
+def render_both(services, stale_names=(), freshness="fresh", updated="", credits=None):
+    """services: up to two /api/display services (Claude first). stale_names are drawn dimmer.
+    credits: Codex's credits info ({"available": bool, ...}) or None."""
     img = Image.new("RGB", (SIZE, SIZE), OFF)
     px = img.load()
+    if credits and credits.get("available"):
+        for r, row in enumerate(COIN.split()):
+            for c, bit in enumerate(row):
+                if bit == "1":
+                    px[c, r] = GOLD
+        text(px, 6, 0, "CR", shade(GOLD, 0.8))
     if updated:
         text(px, SIZE - text_width(updated), 0, updated, shade(FRESH[freshness], 0.8))
     for i, svc in enumerate(services[:2]):
