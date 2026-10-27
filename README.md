@@ -84,7 +84,7 @@ More displays (such as e-ink panels) can be added as new folders under `displays
 
 ## Limitations
 
-- **Needs Claude Code installed and signed in with a Pro or Max plan**, on the computer running the hub. You don't have to use Claude Code, just have it signed in. People who don't have Claude Code can't use this yet. Anthropic doesn't offer outside apps a supported way to read usage, and its terms don't allow third-party tools to use Claude plan logins.
+- **Needs Claude Code installed and signed in with a Pro or Max plan**, on the computer running the hub. If it gets signed out, Claude numbers freeze (the page and displays say how old they are) until you run `claude` and `/login`. You don't have to use Claude Code, just have it signed in. People who don't have Claude Code can't use this yet. Anthropic doesn't offer outside apps a supported way to read usage, and its terms don't allow third-party tools to use Claude plan logins.
 - **The hub's computer has to be on and awake** for fresh numbers. The background service keeps a plugged-in Mac awake; if it's off or asleep, displays keep the last numbers and show how old they are.
 - **Relies on the text `/usage` prints.** If a Claude Code update changes that wording, the live check stops recognizing it and the hub falls back to the status line snapshot (or shows an error) until the parser is updated.
 - **Whole-percent precision.** Claude Code reports whole percentages, so a single short message may not move the number.

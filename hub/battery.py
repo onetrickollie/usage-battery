@@ -132,6 +132,9 @@ def refresh_live():
         LIVE["error"] = f"couldn't run Claude Code ({e.__class__.__name__})"
         return
     meters = parse_usage(out)
+    if not meters and not claude_signed_in(claude):
+        LIVE["error"] = "Claude Code is signed out: run `claude` and /login"
+        return
     if meters:
         now = time.time()
         LIVE.update(result={"meters": meters, "at": now}, error=None)
@@ -202,6 +205,16 @@ def load_state():
     if state.get("live"):
         LIVE["result"] = state["live"]
     HISTORY.update(state.get("history") or {})
+
+
+def claude_signed_in(claude):
+    """False only when Claude Code clearly reports being signed out."""
+    try:
+        out = subprocess.run([claude, "auth", "status"], capture_output=True, text=True, timeout=30,
+                             cwd=tempfile.gettempdir()).stdout
+        return json.loads(out).get("loggedIn", True) is not False
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return True
 
 
 def refresh_loop():
