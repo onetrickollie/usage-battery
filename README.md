@@ -21,6 +21,7 @@ hub/                    runs on your computer; gathers your usage (always needed
 displays/               pick the screen you have (README.md: how to build a new one)
   whisplay/               Raspberry Pi + PiSugar Whisplay HAT (1.69" screen, button, LED)
   idotmatrix/             iDotMatrix 32x32 LED pixel panel over Bluetooth (bridge runs on the Mac)
+    styles/                 the six switchable panel styles, with previews
 docs/                   diagrams
 ```
 
@@ -59,6 +60,17 @@ It prints the address and a passcode for your display. Other devices must send t
 | **Browser** | Full page with every battery, on the computer running the hub | Nothing extra: open http://127.0.0.1:8765 |
 | **iDotMatrix LED panel** (32×32, e.g. Reylax) | Six switchable pixel styles: spectrum rings, diamonds, broken arcs, large gauges, and Baby Mochi. Both services’ readings, credits and freshness status; original batteries remain available. Sent over Bluetooth from the hub’s Mac. | [Setup](displays/idotmatrix/README.md) · [Style previews](displays/idotmatrix/styles/README.md) |
 | **Whisplay HAT** on a Raspberry Pi | 1.69" screen, one service at a time (its button cycles them), RGB LED shows the battery level, starts at boot | [displays/whisplay](displays/whisplay/README.md) |
+
+### LED panel styles
+
+The LED panel has six styles. Switch between them with one command, such as `./displays/idotmatrix/style.sh baby-mochi`; the panel changes within a minute, no restart needed. `legacy` brings back the original batteries. In **Baby Mochi**, the cheese is Claude's 5-hour limit: the mouse takes a bite each time it drops, while the table below keeps all four numbers.
+
+<table>
+  <tr><td align="center"><a href="displays/idotmatrix/styles/spectrum/README.md"><img src="displays/idotmatrix/styles/spectrum/demo.gif" width="200" alt="Centered spectrum style"></a><br><b>Centered spectrum</b><br><code>spectrum</code></td><td align="center"><a href="displays/idotmatrix/styles/diamonds/README.md"><img src="displays/idotmatrix/styles/diamonds/demo.gif" width="200" alt="Centered diamonds style"></a><br><b>Centered diamonds</b><br><code>diamonds</code></td><td align="center"><a href="displays/idotmatrix/styles/broken-arcs/README.md"><img src="displays/idotmatrix/styles/broken-arcs/demo.gif" width="200" alt="Broken arcs style"></a><br><b>Broken arcs</b><br><code>broken-arcs</code></td></tr>
+  <tr><td align="center"><a href="displays/idotmatrix/styles/big-jewels/README.md"><img src="displays/idotmatrix/styles/big-jewels/demo.gif" width="200" alt="Big jewels style"></a><br><b>Big jewels</b><br><code>big-jewels</code></td><td align="center"><a href="displays/idotmatrix/styles/service-spotlight/README.md"><img src="displays/idotmatrix/styles/service-spotlight/demo.gif" width="200" alt="Service spotlight style"></a><br><b>Service spotlight</b><br><code>service-spotlight</code></td><td align="center"><a href="displays/idotmatrix/styles/baby-mochi/README.md"><img src="displays/idotmatrix/styles/baby-mochi/demo.gif" width="200" alt="Baby Mochi style"></a><br><b>Baby Mochi</b><br><code>baby-mochi</code></td></tr>
+</table>
+
+These previews use made-up numbers. See the [style guide](displays/idotmatrix/styles/README.md) for details.
 
 More displays (such as e-ink panels) can be added as new folders under `displays/`. Each one only reads `/api/display` from the hub; [displays/README.md](displays/README.md) explains how to build one.
 

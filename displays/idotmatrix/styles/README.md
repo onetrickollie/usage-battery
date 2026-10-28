@@ -4,6 +4,13 @@ Six self-contained rendering styles for the 32×32 panel. Each folder contains i
 
 ![Six display styles](gallery.png)
 
+Animated demos (click one for its page):
+
+<table>
+  <tr><td align="center"><a href="spectrum/README.md"><img src="spectrum/demo.gif" width="200" alt="Centered spectrum style"></a><br><b>Centered spectrum</b><br><code>spectrum</code></td><td align="center"><a href="diamonds/README.md"><img src="diamonds/demo.gif" width="200" alt="Centered diamonds style"></a><br><b>Centered diamonds</b><br><code>diamonds</code></td><td align="center"><a href="broken-arcs/README.md"><img src="broken-arcs/demo.gif" width="200" alt="Broken arcs style"></a><br><b>Broken arcs</b><br><code>broken-arcs</code></td></tr>
+  <tr><td align="center"><a href="big-jewels/README.md"><img src="big-jewels/demo.gif" width="200" alt="Big jewels style"></a><br><b>Big jewels</b><br><code>big-jewels</code></td><td align="center"><a href="service-spotlight/README.md"><img src="service-spotlight/demo.gif" width="200" alt="Service spotlight style"></a><br><b>Service spotlight</b><br><code>service-spotlight</code></td><td align="center"><a href="baby-mochi/README.md"><img src="baby-mochi/demo.gif" width="200" alt="Baby Mochi style"></a><br><b>Baby Mochi</b><br><code>baby-mochi</code></td></tr>
+</table>
+
 | Style ID | Preview and documentation | What stays visible |
 |---|---|---|
 | `spectrum` | [Centered spectrum](spectrum/README.md) | Both services, both limits |
