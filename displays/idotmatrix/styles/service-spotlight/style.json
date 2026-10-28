@@ -1,0 +1,11 @@
+{
+  "id": "service-spotlight",
+  "title": "Service spotlight",
+  "description": "Two limits for one named service; pin Claude/Codex or opt into rotation.",
+  "pages": [
+    "claude",
+    "codex"
+  ],
+  "preview": "preview.png",
+  "demo": "demo.gif"
+}

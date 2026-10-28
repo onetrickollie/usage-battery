@@ -4,7 +4,7 @@ A battery meter for your AI usage limits. Instead of digging through settings pa
 
 - **Claude**: your 5-hour session limit and weekly limit, with the time until each one recharges.
 - **ChatGPT / Codex**: your 5-hour and weekly Codex limits, checked live every minute, plus whether your account has Codex credits.
-- A pixel-art look on every display: green when more than 50% is left, yellow down to 20%, red below that. The browser and the Raspberry Pi show batteries as 10 power blocks (one per 10%); the LED panel uses battery shapes with a fading red-to-green fill.
+- A pixel-art look on every display: green when more than 50% is left, yellow down to 20%, red below that. The browser and the Raspberry Pi show batteries as 10 power blocks (one per 10%); the LED panel offers six switchable styles, including spectrum gauges and Baby Mochi, a mouse whose cheese represents Claude’s 5-hour allowance.
 - It refreshes every minute on its own, and picks up usage from any device: Claude Code, the desktop app, claude.ai and your phone.
 - **Works with several displays:** your browser, **iDotMatrix 32×32 LED pixel panels** (sold under brands like Reylax) over Bluetooth, and a Raspberry Pi with a Whisplay HAT. See [Pick a display](#2-pick-a-display).
 
@@ -57,7 +57,7 @@ It prints the address and a passcode for your display. Other devices must send t
 | Display | What you get | Setup |
 |---|---|---|
 | **Browser** | Full page with every battery, on the computer running the hub | Nothing extra: open http://127.0.0.1:8765 |
-| **iDotMatrix LED panel** (32×32, e.g. Reylax) | Claude and Codex on one screen as glowing battery shapes, with the update time, a credits coin and a low-battery blink. Sent over Bluetooth from the hub's Mac; the panel's buttons aren't used. | [displays/idotmatrix](displays/idotmatrix/README.md) |
+| **iDotMatrix LED panel** (32×32, e.g. Reylax) | Six switchable pixel styles: spectrum rings, diamonds, broken arcs, large gauges, and Baby Mochi. Both services’ readings, credits and freshness status; original batteries remain available. Sent over Bluetooth from the hub’s Mac. | [Setup](displays/idotmatrix/README.md) · [Style previews](displays/idotmatrix/styles/README.md) |
 | **Whisplay HAT** on a Raspberry Pi | 1.69" screen, one service at a time (its button cycles them), RGB LED shows the battery level, starts at boot | [displays/whisplay](displays/whisplay/README.md) |
 
 More displays (such as e-ink panels) can be added as new folders under `displays/`. Each one only reads `/api/display` from the hub; [displays/README.md](displays/README.md) explains how to build one.

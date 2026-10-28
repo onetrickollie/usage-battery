@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Usage Battery for an iDotMatrix 32x32 LED panel (Bluetooth).
 
-Runs on the same computer as the hub. Every minute it reads /api/display, draws Claude and
-Codex together as a 32x32 picture (battery shapes, update time, credits coin, a blink when a
-limit is nearly empty), and sends it to the panel over a kept-open Bluetooth connection when
+Runs on the same computer as the hub. Every minute it reads /api/display, draws a selected
+32x32 style (or the original battery layout when no style is selected), and sends it to the
+panel over a kept-open Bluetooth connection when
 anything changed, plus a refresh every 10 minutes in case the panel was switched to another
 mode. The panel's own buttons aren't reported over Bluetooth, so they aren't used.
 
@@ -12,12 +12,16 @@ mode. The panel's own buttons aren't reported over Bluetooth, so they aren't use
   python bridge.py --claude        # Claude only, with reset times
   python bridge.py --all           # each service full-screen, looping on the panel
   python bridge.py --address <id>  # use a specific panel
+  python bridge.py --style baby-mochi  # temporary override of the saved style
 """
 import argparse, asyncio, hashlib, io, json, os, sys, time, urllib.request
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from render import render, render_both, needs_warning  # noqa: E402
+from styles import STYLE_IDS  # noqa: E402
+from styles.common import normalize  # noqa: E402
+from styles.runtime import DEFAULT_CONFIG, Settings, StyleSession, Presentation, read_settings  # noqa: E402
 
 CONFIG = os.path.expanduser("~/.usage-battery/idotmatrix.json")
 CHECK_SECONDS = 60
@@ -59,16 +63,38 @@ class Hub:
         self.data, self.ok = None, False
         self.frame_seconds = None  # set when the picture should animate (warning blink)
         self.as_of = {}  # service name -> time.time() its numbers are from
+        self.style_session = StyleSession()
 
     def fetch(self):
         req = urllib.request.Request(self.url, headers={"X-Battery-Key": self.key} if self.key else {})
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
-                self.data, self.ok = json.load(resp), True
+                data = json.load(resp)
+                if not isinstance(data, dict) or not isinstance(data.get('services'), list):
+                    raise ValueError('Invalid display payload')
+                self.data, self.ok = data, True
         except Exception as e:
             if self.ok:
                 log(f"hub not answering ({e.__class__.__name__}); showing last numbers")
             self.ok = False
+
+    def presentation(self, settings, seconds=10):
+        if self.mode != 'both' or settings.style == 'legacy':
+            self.style_session = StyleSession()
+            frames = self.frames()
+            return Presentation(frames, [round((self.frame_seconds or seconds)*1000)]*len(frames),
+                                loop=len(frames) > 1)
+        services = (self.data or {}).get('services') or []
+        now = time.time()
+        stale = []
+        for svc in services:
+            name, age = svc.get('name'), svc.get('age_seconds')
+            if self.ok and isinstance(age, (int, float)):
+                self.as_of[name] = now - age
+            if name in self.as_of and now - self.as_of[name] > 180:
+                stale.append(name)
+        snapshot = normalize(services, stale, offline=not self.ok)
+        return self.style_session.plan(snapshot, settings)
 
     def frames(self):
         services = (self.data or {}).get("services") or []
@@ -120,6 +146,32 @@ def encode(frames, seconds):
     frames[0].save(buf, format="GIF", save_all=True, append_images=frames[1:],
                    duration=int(seconds * 1000), loop=0, optimize=False, disposal=1)
     return "gif", buf.getvalue()
+
+
+def encode_presentation(plan):
+    if len(plan.frames) == 1:
+        return encode(plan.frames, 1)
+    buf = io.BytesIO()
+    # Omitting the loop extension requests one playback. The final PNG is still
+    # required because panel firmware may ignore the GIF's loop metadata.
+    options = {'loop': 0} if plan.loop else {}
+    plan.frames[0].save(buf, format='GIF', save_all=True, append_images=plan.frames[1:],
+                        duration=plan.durations_ms, optimize=False, disposal=2, **options)
+    return 'gif', buf.getvalue()
+
+
+async def send_presentation(address, plan):
+    kind, data = encode_presentation(plan)
+    if plan.settle is None:
+        return await send(address, kind, data)
+    try:
+        if await send(address, kind, data):
+            await asyncio.sleep(plan.seconds)
+    finally:
+        # Even an animation-upload failure gets a best-effort still-image restore.
+        still_kind, still_data = encode([plan.settle], 1)
+        settled = await send(address, still_kind, still_data)
+    return settled
 
 
 async def send(address, kind, data):
@@ -185,18 +237,26 @@ async def run(args):
 
     hub = Hub(args.hub, args.key, "all" if args.all else "claude" if args.claude else "both")
     last_sig, last_sent, failures = None, 0.0, 0
+    settings, previous_error = Settings(), None
     log(f"running: hub {args.hub}, panel {address}, " + (f"cycling services, {args.seconds:g}s each" if args.all else "Claude only" if args.claude else "Claude + Codex"))
     while True:
+        settings, error = read_settings(args.style_config, settings)
+        if error and error != previous_error:
+            log(f'style settings: {error}')
+        previous_error = error
+        active = Settings(args.style) if args.style else settings
         hub.fetch()
-        frames = hub.frames()
-        if frames:
-            kind, data = encode(frames, hub.frame_seconds or args.seconds)
+        plan = hub.presentation(active, args.seconds)
+        if plan.frames:
+            # Cache the eventual still image, not the transient nibble GIF; this
+            # prevents a needless second upload on the following unchanged refresh.
+            kind, data = encode([plan.settle], 1) if plan.settle is not None else encode_presentation(plan)
             sig = hashlib.sha1(data).hexdigest()
             if sig != last_sig or time.time() - last_sent > RESEND_SECONDS:
                 try:
-                    if await send(address, kind, data):
+                    if await send_presentation(address, plan):
                         if sig != last_sig:
-                            log(f"sent {len(frames)} screen(s)")
+                            log(f"sent {len(plan.frames)} frame(s), style {active.style}")
                         last_sig, last_sent, failures = sig, time.time(), 0
                     else:
                         raise RuntimeError("panel rejected the upload")
@@ -220,7 +280,11 @@ def main():
     p.add_argument("--all", action="store_true", help="cycle every service full-screen instead of showing them together")
     p.add_argument("--seconds", type=float, default=10, help="with --all, seconds each service stays on screen")
     p.add_argument("--once", action="store_true", help="send one update and exit")
+    p.add_argument('--style', choices=(*STYLE_IDS, 'legacy'), help='Override saved style for this process')
+    p.add_argument('--style-config', default=str(DEFAULT_CONFIG), help='Style selector JSON file')
     args = p.parse_args()
+    if args.style and (args.claude or args.all):
+        p.error('--style cannot be combined with legacy --claude or --all modes')
     try:
         asyncio.run(run(args))
     except KeyboardInterrupt:

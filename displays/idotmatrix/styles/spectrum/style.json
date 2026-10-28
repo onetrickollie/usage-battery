@@ -1,0 +1,8 @@
+{
+  "id": "spectrum",
+  "title": "Centered spectrum",
+  "description": "Four aligned spectrum rings; all limits stay visible.",
+  "pages": [],
+  "preview": "preview.png",
+  "demo": "demo.gif"
+}

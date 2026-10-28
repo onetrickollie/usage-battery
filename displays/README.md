@@ -76,6 +76,6 @@ Times and levels are worked out by the hub, so small devices don't need a clock,
 Every display uses a pixel-art look with green / yellow / red for `ok` / `low` / `critical`.
 
 - **Browser and Whisplay:** a 5×7 pixel font in capitals and batteries made of 10 power blocks (one per 10% left). The glyph table is in [whisplay/display.py](whisplay/display.py) and [hub/battery.html](../hub/battery.html).
-- **LED panel (32×32):** a 3×5 pixel font, small service logos, and battery shapes whose fill fades red → orange → yellow → green along its length. See [idotmatrix/render.py](idotmatrix/render.py).
+- **LED panel (32×32):** a 3×5 pixel font, small service logos, and [six switchable styles with previews](idotmatrix/styles/README.md). Gauges use spectrum colors; Baby Mochi keeps its cheese yellow and uses colored numbers for urgency. The original batteries remain available as `legacy`.
 
 Copy whichever fits your screen size to keep a new display consistent.

@@ -1,0 +1,11 @@
+{
+  "id": "big-jewels",
+  "title": "Big jewels",
+  "description": "Two large diamonds; pin 5H or weekly, or opt into page rotation.",
+  "pages": [
+    "5h",
+    "week"
+  ],
+  "preview": "preview.png",
+  "demo": "demo.gif"
+}
