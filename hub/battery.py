@@ -5,7 +5,9 @@ Shows your remaining AI usage limits as batteries:
   - Claude: every minute, asks Claude Code for your usage (`claude -p /usage`), which reports
     account-wide numbers without sending a message to the model. Falls back to the snapshot
     statusline.py saves when Claude Code replies (~/.usage-battery/claude.json).
-  - Codex / ChatGPT: rate-limit snapshots Codex CLI writes into ~/.codex/sessions
+  - Codex / ChatGPT: every minute, asks Codex's local app-server (`codex app-server`,
+    account/rateLimits/read) for your limits and credits. Falls back to the snapshots Codex
+    saves in ~/.codex/sessions after each reply.
 
 This script never reads your logins itself.
 

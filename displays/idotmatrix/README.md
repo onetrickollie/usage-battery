@@ -11,7 +11,7 @@ Shows your usage batteries on a 32×32 iDotMatrix LED pixel panel (sold under se
 - **Warning blink:** when any limit has **1% or less** left (and isn't simply running on credits), its battery case turns red and its fill and number blink slowly, once a second.
 - A service whose numbers are **old is drawn dimmer**. Both Claude and Codex are checked live every minute, so this only happens if a check fails.
 - **When the Mac sleeps,** the panel keeps the last picture; the update time tells you how old it is.
-- Other layouts: `--claude` (Claude only, with reset times) or `--all` (each service full-screen, cycling every 10 seconds).
+- Other layouts: `--claude` (Claude only, with reset times) or `--all` (each service full-screen, cycling every 10 seconds). None of them use the panel's buttons.
 
 ## How it works
 

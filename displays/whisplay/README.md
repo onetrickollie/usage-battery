@@ -6,7 +6,7 @@ Shows your usage batteries on a Raspberry Pi with a [PiSugar Whisplay HAT](https
 - **One service per screen.** Press the button to cycle through them: Claude → ChatGPT / Codex → Claude. Services with no data are skipped.
 - **The LED** glows dim green, yellow or red for the lowest battery on the current screen.
 - **Refreshes every minute** from the hub on your computer, and shows "EMPTY IN 1H 40M" under a battery when you're on pace to run out before it resets.
-- **Says how fresh the numbers are.** "UPDATED 4:10 PM" when current, "DATA 25M OLD" when the hub's numbers are stale (Codex only updates when you run `codex`), and "OFFLINE 25M AGO" when the hub can't be reached. While offline, a battery refills when its reset time passes.
+- **Says how fresh the numbers are.** "UPDATED 4:10 PM" when current, "DATA 25M OLD" when the hub's numbers are stale (for example, Claude Code got signed out), and "OFFLINE 25M AGO" when the hub can't be reached. While offline, a battery refills when its reset time passes.
 
 ## What you need
 

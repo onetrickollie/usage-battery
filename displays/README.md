@@ -13,7 +13,7 @@ The hub (`hub/battery.py`) gathers your usage and serves it. A display only show
 |---|---|---|
 | (built into the hub) | Browser, at http://127.0.0.1:8765 | `/api/usage` from the same computer |
 | [whisplay](whisplay/README.md) | Raspberry Pi + PiSugar Whisplay HAT | `/api/display` over Wi-Fi, every 60 s |
-| [idotmatrix](idotmatrix/README.md) | iDotMatrix 32×32 LED panel (e.g. Reylax), Bluetooth | A bridge on the hub's computer reads `/api/display` and sends the panel a looping picture |
+| [idotmatrix](idotmatrix/README.md) | iDotMatrix 32×32 LED panel (e.g. Reylax), Bluetooth | A bridge on the hub's computer reads `/api/display` every minute and sends the panel a picture |
 
 ## Adding a display
 
@@ -43,6 +43,13 @@ A display needs to do four things:
          "empty_in": null, "empty_text": "", "level": "ok"}
       ],
       "age_seconds": 12
+    },
+    {
+      "name": "ChatGPT / Codex",
+      "note": "Live from Codex, checked just now",
+      "meters": [ … ],
+      "age_seconds": 12,
+      "credits": {"available": true, "unlimited": false, "balance": null}
     }
   ]
 }
@@ -53,7 +60,8 @@ A display needs to do four things:
 | `updated`, `updated_text` | When the hub built this answer (Unix time, and ready-to-show local time) |
 | `services[].name` | What to title the screen: "Claude", "ChatGPT / Codex", ... |
 | `services[].note` | Where the numbers came from and how fresh they are (optional to show) |
-| `services[].age_seconds` | How old this service's numbers are. Say so when it's more than a few minutes (e.g. Codex only updates when you run `codex`). |
+| `services[].age_seconds` | How old this service's numbers are. Say so when it's more than a few minutes (both services are checked live, so old numbers mean a check is failing, e.g. Claude Code is signed out). |
+| `services[].credits` | Codex only: `{"available": true/false, "unlimited": …, "balance": null}`. `available` means Codex can keep working after a limit runs out. OpenAI doesn't report `balance` for every plan. |
 | `meters[].label` | Which limit: "5-hour session", "Weekly (all models)", "Weekly (Opus)", ... |
 | `meters[].left` | Whole percent left, 0 to 100. This is the battery level. |
 | `meters[].resets` | When it refills, already formatted ("4:10 PM", "Sun 4:00 AM"), or empty |
@@ -65,4 +73,9 @@ Times and levels are worked out by the hub, so small devices don't need a clock,
 
 ## House style
 
-The browser page and the Whisplay share a pixel-art look: a 5×7 pixel font in capitals, batteries made of 10 power blocks (one per 10% left), and green / yellow / red for `ok` / `low` / `critical`. The font's glyph table is in [whisplay/display.py](whisplay/display.py) and [hub/battery.html](../hub/battery.html); copy it to keep a new display consistent.
+Every display uses a pixel-art look with green / yellow / red for `ok` / `low` / `critical`.
+
+- **Browser and Whisplay:** a 5×7 pixel font in capitals and batteries made of 10 power blocks (one per 10% left). The glyph table is in [whisplay/display.py](whisplay/display.py) and [hub/battery.html](../hub/battery.html).
+- **LED panel (32×32):** a 3×5 pixel font, small service logos, and battery shapes whose fill fades red → orange → yellow → green along its length. See [idotmatrix/render.py](idotmatrix/render.py).
+
+Copy whichever fits your screen size to keep a new display consistent.

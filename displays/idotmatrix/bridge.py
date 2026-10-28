@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Usage Battery for an iDotMatrix 32x32 LED panel (Bluetooth).
 
-Runs on the same computer as the hub. Every minute it reads /api/display, draws Claude's
-batteries as a 32x32 picture (with the time the numbers are from and when each limit
-resets), and sends it to the panel when anything changed, plus a refresh every 10 minutes
-in case the panel was switched to another mode. With --all, it sends a looping animation
-of every service instead, so the panel cycles them by itself.
+Runs on the same computer as the hub. Every minute it reads /api/display, draws Claude and
+Codex together as a 32x32 picture (battery shapes, update time, credits coin, a blink when a
+limit is nearly empty), and sends it to the panel over a kept-open Bluetooth connection when
+anything changed, plus a refresh every 10 minutes in case the panel was switched to another
+mode. The panel's own buttons aren't reported over Bluetooth, so they aren't used.
 
   python bridge.py                 # find the panel (name starts with IDM-) and run
   python bridge.py --once          # send one update and exit
-  python bridge.py --all           # cycle Claude, Codex, ... instead of Claude only
+  python bridge.py --claude        # Claude only, with reset times
+  python bridge.py --all           # each service full-screen, looping on the panel
   python bridge.py --address <id>  # use a specific panel
 """
 import argparse, asyncio, hashlib, io, json, os, sys, time, urllib.request

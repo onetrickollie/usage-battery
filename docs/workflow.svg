@@ -36,10 +36,10 @@
   </g>
   <g>
     <rect x="40" y="244" width="260" height="96" rx="12" fill="#ffffff" stroke="#d9d7ce"/>
-    <text x="60" y="274" font-size="16" font-weight="700" fill="#1d1d1b">Codex CLI</text>
+    <text x="60" y="274" font-size="16" font-weight="700" fill="#1d1d1b">Codex</text>
     <text font-size="13" fill="#5f5e58">
-      <tspan x="60" y="300">Saves your rate limits in</tspan>
-      <tspan x="60" y="319" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">~/.codex/sessions</tspan>
+      <tspan x="60" y="300">Reports your limits through</tspan>
+      <tspan x="60" y="319" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">codex app-server</tspan>
     </text>
   </g>
 
@@ -55,11 +55,11 @@
       <text x="402" y="169" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5f5e58">claude -p /usage</text>
 
       <circle cx="390" cy="198" r="4" fill="#2f9e5b"/>
-      <text x="402" y="202">Reads the latest Codex snapshot</text>
+      <text x="402" y="202">Asks Codex for usage + credits</text>
 
       <circle cx="390" cy="231" r="4" fill="#2f9e5b"/>
-      <text x="402" y="235">Falls back to the status line</text>
-      <text x="402" y="254" fill="#5f5e58" font-size="12">snapshot if the live check fails</text>
+      <text x="402" y="235">Falls back to saved snapshots</text>
+      <text x="402" y="254" fill="#5f5e58" font-size="12">if a live check fails</text>
 
       <circle cx="390" cy="283" r="4" fill="#2f9e5b"/>
       <text x="402" y="287">Serves the numbers locally</text>
@@ -84,11 +84,11 @@
   </g>
   <g>
     <rect x="690" y="214" width="230" height="126" rx="12" fill="#ffffff" stroke="#d9d7ce"/>
-    <text x="710" y="244" font-size="16" font-weight="700" fill="#1d1d1b">Desk display</text>
+    <text x="710" y="244" font-size="16" font-weight="700" fill="#1d1d1b">Desk displays</text>
     <text font-size="13" fill="#5f5e58">
-      <tspan x="710" y="270">Raspberry Pi + Whisplay HAT</tspan>
-      <tspan x="710" y="290">Button cycles services,</tspan>
-      <tspan x="710" y="310">LED shows battery level</tspan>
+      <tspan x="710" y="270">LED pixel panel (Bluetooth)</tspan>
+      <tspan x="710" y="290">Raspberry Pi + Whisplay</tspan>
+      <tspan x="710" y="310">(Wi-Fi, with a passcode)</tspan>
     </text>
   </g>
 
@@ -104,9 +104,9 @@
   <line x1="40" y1="378" x2="920" y2="378" stroke="#e2e0d8"/>
   <g font-size="13.5" fill="#1d1d1b">
     <circle cx="48" cy="410" r="5" fill="#2f9e5b"/>
-    <text x="62" y="415"><tspan font-weight="700">No model calls.</tspan> <tspan fill="#5f5e58">/usage only checks your limits, so refreshing doesn't use them up.</tspan></text>
+    <text x="62" y="415"><tspan font-weight="700">No model calls.</tspan> <tspan fill="#5f5e58">Both checks only read your limits, so refreshing doesn't use them up.</tspan></text>
     <circle cx="48" cy="442" r="5" fill="#2f9e5b"/>
-    <text x="62" y="447"><tspan font-weight="700">No logins leave your computer.</tspan> <tspan fill="#5f5e58">Displays only receive percentages, and need a passcode.</tspan></text>
+    <text x="62" y="447"><tspan font-weight="700">No logins leave your computer.</tspan> <tspan fill="#5f5e58">Displays only ever receive percentages.</tspan></text>
     <circle cx="48" cy="474" r="5" fill="#2f9e5b"/>
     <text x="62" y="479"><tspan font-weight="700">Any device counts.</tspan> <tspan fill="#5f5e58">Usage from the desktop app, claude.ai or your phone shows up within a minute.</tspan></text>
   </g>

@@ -1,7 +1,8 @@
-"""Draw one service as a 32x32 pixel picture for an iDotMatrix LED panel.
+"""Draw usage as 32x32 pixel pictures for an iDotMatrix LED panel.
 
-Layout (rows from the top):
-   1-5   service icon, and the time the numbers were last updated (green / yellow / red = fresh / old / hub offline)
+render_both() is the default: Claude and Codex together (see the layout comment above it).
+render() draws one service full-screen, used by bridge.py --claude and --all:
+   1-5   service icon, and the time the numbers are from (green / yellow / red = fresh / old / hub offline)
    8-12  5-hour: percent left, and when it resets (a time, e.g. 8:30)
   14-18  a 10-block battery
   21-25  weekly: percent left, and when it resets (a day, e.g. SUN)

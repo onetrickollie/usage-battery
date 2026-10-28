@@ -4,9 +4,9 @@ A battery meter for your AI usage limits. Instead of digging through settings pa
 
 - **Claude**: your 5-hour session limit and weekly limit, with the time until each one recharges.
 - **ChatGPT / Codex**: your 5-hour and weekly Codex limits, checked live every minute, plus whether your account has Codex credits.
-- A pixel-art look: each battery is 10 power blocks, one per 10% left, and they're green above 50%, yellow down to 20%, and red below that.
+- A pixel-art look on every display: green when more than 50% is left, yellow down to 20%, red below that. The browser and the Raspberry Pi show batteries as 10 power blocks (one per 10%); the LED panel uses battery shapes with a fading red-to-green fill.
 - It refreshes every minute on its own, and picks up usage from any device: Claude Code, the desktop app, claude.ai and your phone.
-- **Works with several displays:** your browser, a Raspberry Pi with a Whisplay HAT, and now **iDotMatrix 32×32 LED pixel panels** (sold under brands like Reylax) over Bluetooth. See [Pick a display](#2-pick-a-display).
+- **Works with several displays:** your browser, **iDotMatrix 32×32 LED pixel panels** (sold under brands like Reylax) over Bluetooth, and a Raspberry Pi with a Whisplay HAT. See [Pick a display](#2-pick-a-display).
 
 ![How Usage Battery works: usage from your Claude account and Codex goes to battery.py on your computer, which refreshes every 60 seconds and feeds the browser page and a desk display](docs/workflow.svg)
 
@@ -14,12 +14,13 @@ A battery meter for your AI usage limits. Instead of digging through settings pa
 
 ```
 hub/                    runs on your computer; gathers your usage (always needed)
-  battery.py              the hub: checks usage every minute and serves it
+  battery.py              the hub: checks Claude and Codex every minute and serves the numbers
   battery.html            the browser page
   statusline.py           optional Claude Code status line (fallback data source)
-displays/               pick the screen you have
+  macos/install.sh        runs the hub in the background on macOS
+displays/               pick the screen you have (README.md: how to build a new one)
   whisplay/               Raspberry Pi + PiSugar Whisplay HAT (1.69" screen, button, LED)
-  idotmatrix/             iDotMatrix 32x32 LED pixel panel over Bluetooth
+  idotmatrix/             iDotMatrix 32x32 LED pixel panel over Bluetooth (bridge runs on the Mac)
 docs/                   diagrams
 ```
 
@@ -43,7 +44,7 @@ Open http://127.0.0.1:8765 to see your batteries in the browser. Leave the termi
 
 The hub then starts when you log in, restarts if it stops, and keeps your Mac awake while it's plugged in (on battery the Mac sleeps normally). It runs with `--lan` so displays can reach it; use `--local-only` for this Mac only. `--status` shows whether it's running and where the log is, and `--uninstall` removes it.
 
-**Using a separate display?** Start the hub with `--lan` instead, so devices on your Wi-Fi can reach it:
+**Running it by hand with a Wi-Fi display (like the Raspberry Pi)?** Add `--lan`, so devices on your Wi-Fi can reach it. The background service above already does this, and the LED panel doesn't need it, since its bridge runs on the same Mac:
 
 ```bash
 python3 hub/battery.py --lan
@@ -56,8 +57,8 @@ It prints the address and a passcode for your display. Other devices must send t
 | Display | What you get | Setup |
 |---|---|---|
 | **Browser** | Full page with every battery, on the computer running the hub | Nothing extra: open http://127.0.0.1:8765 |
-| **Whisplay HAT** on a Raspberry Pi | 1.69" screen, button to cycle services, LED shows battery level, starts at boot | [displays/whisplay](displays/whisplay/README.md) |
-| **iDotMatrix LED panel** (32×32, e.g. Reylax) | Glowing pixel batteries for Claude and Codex on one screen, with a credits coin, over Bluetooth from the hub's Mac | [displays/idotmatrix](displays/idotmatrix/README.md) |
+| **iDotMatrix LED panel** (32×32, e.g. Reylax) | Claude and Codex on one screen as glowing battery shapes, with the update time, a credits coin and a low-battery blink. Sent over Bluetooth from the hub's Mac; the panel's buttons aren't used. | [displays/idotmatrix](displays/idotmatrix/README.md) |
+| **Whisplay HAT** on a Raspberry Pi | 1.69" screen, one service at a time (its button cycles them), RGB LED shows the battery level, starts at boot | [displays/whisplay](displays/whisplay/README.md) |
 
 More displays (such as e-ink panels) can be added as new folders under `displays/`. Each one only reads `/api/display` from the hub; [displays/README.md](displays/README.md) explains how to build one.
 
@@ -66,7 +67,7 @@ More displays (such as e-ink panels) can be added as new folders under `displays
 - **Claude**: once a minute, the hub runs Claude Code's built-in `/usage` command in non-interactive mode and reads the percentages it prints. This only checks usage; it doesn't send a message to the model, so it doesn't use up your limit (each check takes about a second). Because limits belong to your account, the numbers include usage from every device.
 - **Fallback**: if the live check fails, the hub uses the last numbers `statusline.py` saved when Claude Code replied, if you've set it up (see below).
 - **Codex**: once a minute, the hub asks Codex's own local app-server (`codex app-server`, the service the Codex desktop app uses) for your limits with its `account/rateLimits/read` request. Like Claude's `/usage`, it's a status check, not a model request. If that fails, the hub falls back to the snapshot Codex saves in `~/.codex/sessions` after each reply.
-- **Displays** ask the hub for `/api/display` every minute: a small JSON with percent left, recharge times and a level (`ok`, `low`, `critical`) for each battery.
+- **Displays** get `/api/display` from the hub every minute: a small JSON with percent left, recharge times and a level (`ok`, `low`, `critical`) for each battery, plus Codex's credits flag. Wi-Fi displays (the Pi) ask for it themselves; the LED panel's bridge asks on the Mac and pushes a picture over Bluetooth.
 - **Time left**: the hub keeps the last few hours of readings and estimates when a limit will run out at your current pace ("empty in ~1h 40m"), shown only when that happens before the limit resets.
 - **Memory**: the last reading and recent history are saved to `~/.usage-battery/hub-state.json`, so a restarted hub shows numbers right away. Displays say how old the numbers are ("DATA 25M OLD", "OFFLINE 25M AGO") and refill a battery when its reset time passes, even while the hub is off.
 - **Privacy**: the hub never reads your logins. Claude Code handles its own sign-in, the same way as when you use it yourself. Displays only ever receive percentages.
